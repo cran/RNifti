@@ -5,16 +5,38 @@
 
 #include "niftilib/nifti1_io.h"
 
-// Thin wrapper around a C-style nifti_image struct that allows C++-style destruction
+/**
+ * @mainpage RNifti: Fast R and C++ Access to NIfTI Images
+ * A more extensive overview of the \c RNifti package, and its usage from R, is provided on the
+ * package's GitHub page at \c https://github.com/jonclayden/RNifti. The primary role of these
+ * pages is to document the \ref NiftiImage C++ class for package developers linking to \c RNifti.
+**/
+
+
+/**
+ * Thin wrapper around a C-style \c nifti_image struct that allows C++-style destruction
+ * @author Jon Clayden
+**/
 class NiftiImage
 {
 public:
+    /**
+     * Inner class referring to a subset of an image. Currently must refer to the last
+     * dimension in the image, i.e., a volume in a 4D parent image, or a slice in a 3D image
+    **/
     struct Block
     {
-        const NiftiImage &image;
-        const int dimension;
-        const int index;
+        const NiftiImage &image;        /**< The parent image */
+        const int dimension;            /**< The dimension along which the block applies (which should be the last) */
+        const int index;                /**< The location along \c dimension */
         
+        /**
+         * Standard constructor for this class
+         * @param image The parent image
+         * @param dimension The dimension along which the block applies (which should be the last)
+         * @param index The location along \c dimension
+         * @exception runtime_error If \c dimension is not the last dimension in the image
+        **/
         Block (const NiftiImage &image, const int dimension, const int index)
             : image(image), dimension(dimension), index(index)
         {
@@ -22,6 +44,14 @@ public:
                 throw std::runtime_error("Blocks must be along the last dimension in the image");
         }
         
+        /**
+         * Copy assignment operator, which allows a block in one image to be replaced with
+         * the contents of another image
+         * @param source A \ref NiftiImage, containing the data to replace the block with
+         * @return A reference to the block
+         * @exception runtime_error If the \c source is incompatible with the block in size or
+         * datatype
+        **/
         Block & operator= (const NiftiImage &source)
         {
             if (source->datatype != image->datatype)
@@ -40,6 +70,12 @@ public:
         }
     };
     
+    /**
+     * Convert between R \c SEXP object type and \c nifti_image datatype codes
+     * @param sexpType A numeric R \c SEXP type code
+     * @return A \c nifti_image datatype code
+     * @exception runtime_error If a non-numeric type is passed
+    **/
     static short sexpTypeToNiftiType (const int sexpType)
     {
         if (sexpType == INTSXP || sexpType == LGLSXP)
@@ -51,56 +87,131 @@ public:
     }
     
 protected:
-    nifti_image *image;
-    bool persistent;
+    nifti_image *image;         /**< The wrapped \c nifti_image pointer */
+    bool persistent;            /**< Marker of persistence, which determines whether the nifti_image should be freed on destruction */
     
+    /**
+     * Copy the contents of a \c nifti_image to create a new image
+     * @param source A pointer to a \c nifti_image
+    **/
     void copy (nifti_image * const source);
+    
+    /**
+     * Copy the contents of another \c NiftiImage to create a new image
+     * @param source A reference to a \c NiftiImage
+    **/
     void copy (const NiftiImage &source);
+    
+    /**
+     * Copy the contents of a \ref Block to create a new image
+     * @param source A reference to a \ref Block
+    **/
     void copy (const Block &source);
     
+    /**
+     * Initialise the object from an S4 object of class \c "nifti"
+     * @param object The source object
+     * @param copyData If \c true, the data are copied in; otherwise just the metadata is extracted
+    **/
     void initFromNiftiS4 (const Rcpp::RObject &object, const bool copyData = true);
+    
+    /**
+     * Initialise the object from a reference object of class \c "MriImage"
+     * @param object The source object
+     * @param copyData If \c true, the data are copied in; otherwise just the metadata is extracted
+    **/
     void initFromMriImage (const Rcpp::RObject &object, const bool copyData = true);
+    
+    /**
+     * Initialise the object from an R list with named elements, which can only contain metadata
+     * @param object The source object
+    **/
     void initFromList (const Rcpp::RObject &object);
+    
+    /**
+     * Initialise the object from an R array
+     * @param object The source object
+     * @param copyData If \c true, the data are copied in; otherwise just the metadata is extracted
+    **/
     void initFromArray (const Rcpp::RObject &object, const bool copyData = true);
     
+    /**
+     * Modify the pixel dimensions, and potentially the xform matrices to match
+     * @param pixdim Vector of new pixel dimensions
+    **/
     void updatePixdim (const std::vector<float> &pixdim);
+    
+    /**
+     * Modify the pixel dimension units
+     * @param pixunits Vector of new pixel units, specified using their standard abbreviations
+    **/
     void setPixunits (const std::vector<std::string> &pixunits);
     
 public:
+    /**
+     * Default constructor
+    **/
     NiftiImage ()
         : image(NULL), persistent(false) {}
     
+    /**
+     * Copy constructor
+     * @param source Another \c NiftiImage object
+    **/
     NiftiImage (const NiftiImage &source)
-        : persistent(false)
+        : image(NULL), persistent(false)
     {
         this->copy(source);
 #ifndef NDEBUG
-        Rprintf("Creating NiftiImage with pointer %p\n", this->image);
+        Rprintf("Creating NiftiImage with pointer %p (from NiftiImage)\n", this->image);
 #endif
     }
     
+    /**
+     * Initialise using an existing \c nifti_image pointer
+     * @param image An existing \c nifti_image pointer, possibly \c NULL
+     * @param copy If \c true, the image data will be copied; otherwise this object just wraps
+     * the pointer passed to it
+    **/
     NiftiImage (nifti_image * const image, const bool copy = false)
-        : image(image), persistent(false)
+        : image(NULL), persistent(false)
     {
         if (copy)
             this->copy(image);
+        else
+            this->image = image;
 #ifndef NDEBUG
-        Rprintf("Creating NiftiImage with pointer %p\n", this->image);
+        Rprintf("Creating NiftiImage with pointer %p (from pointer)\n", this->image);
 #endif
     }
     
+    /**
+     * Initialise using a path string
+     * @param path A string specifying a path to a valid NIfTI-1 file, possibly gzipped
+     * @param readData If \c true, the data will be read as well as the metadata
+     * @exception runtime_error If reading from the file fails
+    **/
     NiftiImage (const std::string &path, const bool readData = true)
+        : persistent(false)
     {
         this->image = nifti_image_read(path.c_str(), readData);
         if (this->image == NULL)
             throw std::runtime_error("Failed to read image from path " + path);
 #ifndef NDEBUG
-        Rprintf("Creating NiftiImage with pointer %p\n", this->image);
+        Rprintf("Creating NiftiImage with pointer %p (from string)\n", this->image);
 #endif
     }
     
+    /**
+     * Initialise from an R object
+     * @param object The source object
+     * @param readData If \c true, the data will be copied as well as the metadata
+    **/
     NiftiImage (const SEXP object, const bool readData = true);
     
+    /**
+     * Destructor which frees the wrapped pointer, unless the object is marked as persistent
+    **/
     ~NiftiImage ()
     {
         if (!persistent)
@@ -112,22 +223,47 @@ public:
         }
     }
     
+    /**
+     * Allows a \c NiftiImage object to be treated as a pointer to a \c nifti_image
+    **/
     operator nifti_image* () const { return image; }
     
+    /**
+     * Allows a \c NiftiImage object to be treated as a pointer to a \c nifti_image
+    **/
     nifti_image * operator-> () const { return image; }
     
+    /**
+     * Copy assignment operator, which copies from its argument
+     * @param source Another \c NiftiImage
+    **/
     NiftiImage & operator= (const NiftiImage &source)
     {
         copy(source);
+#ifndef NDEBUG
+        Rprintf("Creating NiftiImage with pointer %p (from NiftiImage)\n", this->image);
+#endif
         return *this;
     }
     
+    /**
+     * Copy assignment operator, which allows a block to be used to replace the contents of a
+     * suitably sized image
+     * @param source A reference to a suitable \ref Block object
+    **/
     NiftiImage & operator= (const Block &source)
     {
         copy(source);
+#ifndef NDEBUG
+        Rprintf("Creating NiftiImage with pointer %p (from Block)\n", this->image);
+#endif
         return *this;
     }
     
+    /**
+     * Allows the image to be marked as persistent, so that it can be passed back to R
+     * @param persistent The new persistence state of the object
+    **/
     void setPersistence (const bool persistent)
     {
         this->persistent = persistent;
@@ -137,8 +273,19 @@ public:
 #endif
     }
     
+    /**
+     * Determines whether or not the internal pointer is \c NULL
+    **/
     bool isNull () const { return (image == NULL); }
+    
+    /**
+     * Determines whether or not the image is marked as persistent
+    **/
     bool isPersistent () const { return persistent; }
+    
+    /**
+     * Returns the number of dimensions in the image
+    **/
     int nDims () const
     {
         if (image == NULL)
@@ -147,7 +294,12 @@ public:
             return image->ndim;
     }
     
-    // Note that this function differs from its R equivalent in only dropping unitary dimensions after the last nonunitary one
+    /**
+     * Drop unitary dimensions
+     * @return Self, after possibly reducing the dimensionality of the image
+     * @note This function differs from its R equivalent in only dropping unitary dimensions after
+     * the last nonunitary one
+    **/
     NiftiImage & drop ()
     {
         int ndim = image->ndim;
@@ -158,29 +310,104 @@ public:
         return *this;
     }
     
+    /**
+     * Rescales the image, changing its image dimensions and pixel dimensions
+     * @param scales Vector of scale factors along each dimension
+     * @note No interpolation is performed on the pixel data, which is simply dropped
+    **/
     void rescale (const std::vector<float> &scales);
+    
+    /**
+     * Update the image from an R array
+     * @param array An R array object
+    **/
     void update (const SEXP array);
     
+    /**
+     * Obtain an xform matrix, indicating the orientation of the image
+     * @param preferQuaternion If \c true, use the qform matrix in preference to the sform
+     * @return A 4x4 matrix
+    **/
     mat44 xform (const bool preferQuaternion = true) const;
     
+    /**
+     * Extract a slice block from a 3D image
+     * @param i The slice number required
+     * @return A \ref Block object
+    **/
     const Block slice (const int i) const { return Block(*this, 3, i); }
+    
+    /**
+     * Extract a slice block from a 3D image
+     * @param i The slice number required
+     * @return A \ref Block object
+    **/
+    Block slice (const int i) { return Block(*this, 3, i); }
+    
+    /**
+     * Extract a volume block from a 4D image
+     * @param i The volume number required
+     * @return A \ref Block object
+    **/
     const Block volume (const int i) const { return Block(*this, 4, i); }
     
-    Block slice (const int i) { return Block(*this, 3, i); }
+    /**
+     * Extract a volume block from a 4D image
+     * @param i The volume number required
+     * @return A \ref Block object
+    **/
     Block volume (const int i) { return Block(*this, 4, i); }
     
+    /**
+     * Write the image to a NIfTI-1 file
+     * @param fileName The file name to write to, with appropriate suffix (e.g. ".nii.gz")
+     * @param datatype The datatype to use when writing the file
+    **/
     void toFile (const std::string fileName, const short datatype) const;
+    
+    /**
+     * Write the image to a NIfTI-1 file
+     * @param fileName The file name to write to, with appropriate suffix (e.g. ".nii.gz")
+     * @param datatype The datatype to use when writing the file, or "auto"
+    **/
     void toFile (const std::string fileName, const std::string &datatype) const;
     
+    /**
+     * Create an R array from the image
+     * @return A numeric array object with an external pointer attribute
+    **/
     Rcpp::RObject toArray () const;
+    
+    /**
+     * Create an internal image to pass back to R
+     * @param label A string labelling the image
+     * @return An R character string with additional attributes
+    **/
     Rcpp::RObject toPointer (const std::string label) const;
+    
+    /**
+     * A conditional method that calls either \ref toArray or \ref toPointer
+     * @param internal If \c true, \ref toPointer will be called; otherwise \ref toArray
+     * @param label A string labelling the image
+     * @return An R object
+    **/
     Rcpp::RObject toArrayOrPointer (const bool internal, const std::string label) const;
+    
+    /**
+     * Create an R list containing raw image metadata
+     * @return An R list
+    **/
     Rcpp::RObject headerToList () const;
 };
 
 inline void NiftiImage::copy (nifti_image * const source)
 {
-    if (source != NULL)
+    if (image != NULL)
+        nifti_image_free(image);
+        
+    if (source == NULL)
+        image = NULL;
+    else
     {
         image = nifti_copy_nim_info(source);
         if (source->data != NULL)
@@ -200,8 +427,13 @@ inline void NiftiImage::copy (const NiftiImage &source)
 
 inline void NiftiImage::copy (const Block &source)
 {
+    if (image != NULL)
+        nifti_image_free(image);
+    
     nifti_image *sourceStruct = source.image;
-    if (sourceStruct != NULL)
+    if (sourceStruct == NULL)
+        image = NULL;
+    else
     {
         image = nifti_copy_nim_info(sourceStruct);
         image->dim[0] = source.image->dim[0] - 1;
@@ -329,7 +561,7 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
     Rcpp::RObject data = mriImage.field("data");
     if (data.inherits("SparseArray"))
     {
-        Rcpp::Language call("Rcpp::as.array", data);
+        Rcpp::Language call("as.array", data);
         data = call.eval();
     }
     
@@ -545,41 +777,54 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData)
     : persistent(false)
 {
     Rcpp::RObject imageObject(object);
+    bool resolved = false;
     
-    if (Rf_isNull(object))
-        this->image = NULL;
-    else if (imageObject.hasAttribute(".nifti_image_ptr"))
+    if (imageObject.hasAttribute(".nifti_image_ptr"))
     {
         Rcpp::XPtr<NiftiImage> imagePtr(SEXP(imageObject.attr(".nifti_image_ptr")));
-        this->image = *imagePtr;
-        this->persistent = true;
-        
-        if (imageObject.hasAttribute("dim"))
-            update(object);
+        if (imagePtr.get() != NULL)
+        {
+            this->image = *imagePtr;
+            this->persistent = true;
+            resolved = true;
+            
+            if (imageObject.hasAttribute("dim"))
+                update(object);
+        }
+        else if (Rf_isString(object))
+            throw std::runtime_error("Internal image is not valid");
+        else
+            Rf_warning("Ignoring invalid internal pointer");
     }
-    else if (Rf_isString(object))
+    
+    if (!resolved)
     {
-        const std::string path = Rcpp::as<std::string>(object);
-        this->image = nifti_image_read(path.c_str(), readData);
-        if (this->image == NULL)
-            throw std::runtime_error("Failed to read image from path " + path);
+        if (Rf_isNull(object))
+            this->image = NULL;
+        else if (Rf_isString(object))
+        {
+            const std::string path = Rcpp::as<std::string>(object);
+            this->image = nifti_image_read(path.c_str(), readData);
+            if (this->image == NULL)
+                throw std::runtime_error("Failed to read image from path " + path);
+        }
+        else if (imageObject.inherits("nifti"))
+            initFromNiftiS4(imageObject, readData);
+        else if (imageObject.inherits("MriImage"))
+            initFromMriImage(imageObject, readData);
+        else if (Rf_isVectorList(object))
+            initFromList(imageObject);
+        else if (imageObject.hasAttribute("dim"))
+            initFromArray(imageObject, readData);
+        else
+            throw std::runtime_error("Cannot convert object of class \"" + Rcpp::as<std::string>(imageObject.attr("class")) + "\" to a nifti_image");
     }
-    else if (imageObject.inherits("nifti"))
-        initFromNiftiS4(imageObject, readData);
-    else if (imageObject.inherits("MriImage"))
-        initFromMriImage(imageObject, readData);
-    else if (Rf_isVectorList(object))
-        initFromList(imageObject);
-    else if (imageObject.hasAttribute("dim"))
-        initFromArray(imageObject, readData);
-    else
-        throw std::runtime_error("Cannot convert object of class \"" + Rcpp::as<std::string>(imageObject.attr("class")) + "\" to a nifti_image");
     
     if (this->image != NULL)
         nifti_update_dims_from_array(this->image);
     
 #ifndef NDEBUG
-    Rprintf("Creating NiftiImage with pointer %p\n", this->image);
+    Rprintf("Creating NiftiImage with pointer %p (from SEXP)\n", this->image);
 #endif
 }
 
@@ -939,6 +1184,14 @@ inline Rcpp::RObject imageDataToArray (const nifti_image *source)
 {
     if (source == NULL)
         return Rcpp::RObject();
+    else if (source->data == NULL)
+    {
+        Rf_warning("Internal image contains no data - filling array with NAs");
+        Rcpp::Vector<SexpType> array(static_cast<int>(source->nvox));
+        // Rcpp's proxy infrastructure should handle converting NA_REAL to the appropriate NA
+        std::fill(array.begin(), array.end(), NA_REAL);
+        return array;
+    }
     else
     {
         SourceType *original = static_cast<SourceType *>(source->data);
