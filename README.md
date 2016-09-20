@@ -2,7 +2,7 @@
 
 The [NIfTI-1 format](http://nifti.nimh.nih.gov/nifti-1) is a popular file format for storing medical imaging data, widely used in medical research and related fields. Conceptually, a NIfTI-1 file incorporates multidimensional numeric data, like an R `array`, but with additional metadata describing the real-space resolution of the image, the physical orientation of the image, and how the image should be interpreted.
 
-There are several packages available for reading and writing NIfTI-1 files in R, and these are summarised in the [Medical Imaging task view](https://cran.r-project.org/web/views/MedicalImaging.html). However, `RNifti` is distinguished by its
+There are several packages available for reading and writing NIfTI-1 files in R, and these are summarised in the [Medical Imaging task view](https://cran.r-project.org/view=MedicalImaging). However, `RNifti` is distinguished by its
 
 - [extremely strong performance](#performance), in terms of speed;
 - [C/C++ API](#api), allowing access to NIfTI images even in compiled code in other packages; and
@@ -139,7 +139,9 @@ This arrangement is efficient and generally works well, but many R operations st
 
 ## API
 
-It is possible to use the package's NIfTI-handling code in other R packages' compiled code, thereby obviating the need to duplicate the reference implementation. Moreover, `RNifti` provides a C++ wrapper class, `NiftiImage`, which simplifies memory management, supports the package's internal image pointers and persistence, and provides syntactic sugar. A package can use this class by including
+It is possible to use the package's NIfTI-handling code in other R packages' compiled code, thereby obviating the need to duplicate the reference implementation. Moreover, `RNifti` provides a C++ wrapper class, `NiftiImage`, which simplifies memory management, supports the package's internal image pointers and persistence, and provides syntactic sugar. Full doxygen documentation for this class is available at <http://doxygen.flakery.org/RNifti/>, and is also provided with package releases.
+
+A third-party package can use the `NiftiImage` class by including
 
 ```
 LinkingTo: Rcpp, RNifti
