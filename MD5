@@ -1,13 +1,14 @@
-d7dff546286e57bf6c878cd9fc0fa1be *DESCRIPTION
+4922270de79e74581509c8dee7bd0c2e *DESCRIPTION
 e20469301709fc7383310d95f9e8ab4e *NAMESPACE
-679f0b5d4d7f9a043b729394ac795dbc *NEWS
+b464c8d07f3d2da17701bd9b30c565b3 *NEWS
 522e649998b6ae37eb5a27660a23ef49 *R/image.R
 70c0ab5f53bf06a973b18f15a1146e8b *R/nifti.R
-ffbecfa0db40edc778b5f5360ed1b1eb *R/xform.R
+602e4a12dfa0760b6d3c95589a1de145 *R/xform.R
 33e5b97691485f83c60e3d5c3f3a2cdc *R/zzz.R
 6e86092933d64098f82e46720f870905 *README.md
 ccc527aa65600337ed5e3f832c0eb443 *cleanup
 e1101581081b97d9032639597016d3d8 *cleanup.win
+fb6ea71c285b8fc5d86bf53c4e104348 *inst/COPYRIGHTS
 cc3454de4dbdf588c90336fca9d3cb3a *inst/doxygen/html/_nifti_image_8h_source.html
 5dc7c85d4dbf8fe4279dd1605a2bbc0d *inst/doxygen/html/annotated.html
 ceaaae73746596a7519cfe782d8aa065 *inst/doxygen/html/bc_s.png
@@ -177,4 +178,4 @@ de91a463004fd5b944c3d37eab0c1794 *src/zlib/zutil.h
 db1082070d31f780ebd9c051b74adc17 *src/znzlib/znzlib.c
 d4a2abbb6217055b8900c8d86ac6aa53 *tests/testthat.R
 4b0fe74a7776bec4fa562d998fb06226 *tests/testthat/test-05-nifti.R
-67e97715d9000e8325d9f2e38351db0b *tests/testthat/test-10-xform.R
+8fe61bf5c5c036265ebebb2f8ee1c263 *tests/testthat/test-10-xform.R

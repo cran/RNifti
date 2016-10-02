@@ -1,9 +1,14 @@
 Package: RNifti
-Version: 0.2.1
-Date: 2016-09-20
+Version: 0.2.2
+Date: 2016-09-29
 Title: Fast R and C++ Access to NIfTI Images
-Author: Jon Clayden
-Maintainer: Jon Clayden <code@clayden.org>
+Authors@R: c(person("Jon","Clayden",role=c("cre","aut"),email="code@clayden.org"),
+             person("Bob","Cox",role="aut"),
+             person("Mark","Jenkinson",role="aut"),
+             person("Rick","Reynolds",role="ctb"),
+             person("Kate","Fissell",role="ctb"),
+             person("Jean-loup","Gailly",role="cph"),
+             person("Mark","Adler",role="cph"))
 Imports: Rcpp (>= 0.11.0)
 Suggests: testthat (>= 0.11.0)
 Enhances: oro.nifti, tractor.base
@@ -18,6 +23,14 @@ BugReports: https://github.com/jonclayden/RNifti/issues
 Encoding: UTF-8
 RoxygenNote: 5.0.1
 NeedsCompilation: yes
-Packaged: 2016-09-20 16:48:26 UTC; jon
+Packaged: 2016-10-02 10:40:42 UTC; jon
+Author: Jon Clayden [cre, aut],
+  Bob Cox [aut],
+  Mark Jenkinson [aut],
+  Rick Reynolds [ctb],
+  Kate Fissell [ctb],
+  Jean-loup Gailly [cph],
+  Mark Adler [cph]
+Maintainer: Jon Clayden <code@clayden.org>
 Repository: CRAN
-Date/Publication: 2016-09-20 23:35:36
+Date/Publication: 2016-10-02 15:49:31
