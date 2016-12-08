@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['_7eniftiimage',['~NiftiImage',['../class_nifti_image.html#a534d7793492cc624591ac51ce83b270e',1,'NiftiImage']]]
+  ['_7eniftiimage',['~NiftiImage',['../class_r_nifti_1_1_nifti_image.html#ab42e1da4ab521cce7bcabb8a0a7cd595',1,'RNifti::NiftiImage']]]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['rescale',['rescale',['../class_nifti_image.html#a351a011115b703a1f9748e491cd96ef7',1,'NiftiImage']]]
+  ['rescale',['rescale',['../class_r_nifti_1_1_nifti_image.html#abcf3f45286d37515de42720d75a6f82b',1,'RNifti::NiftiImage']]]
 ];

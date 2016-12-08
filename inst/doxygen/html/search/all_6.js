@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['operator_20nifti_5fimage_20_2a',['operator nifti_image *',['../class_nifti_image.html#a5a2da75f0dc3922333b4d045131819fa',1,'NiftiImage']]],
-  ['operator_2d_3e',['operator-&gt;',['../class_nifti_image.html#aac59695c852b18c27df516f4319ef6fe',1,'NiftiImage']]],
-  ['operator_3d',['operator=',['../struct_nifti_image_1_1_block.html#a62f276910d74b96e95af005335765751',1,'NiftiImage::Block::operator=()'],['../class_nifti_image.html#ad2291a44323c141cb85fab57301f25d0',1,'NiftiImage::operator=(const NiftiImage &amp;source)'],['../class_nifti_image.html#a65a9bc82a70433186ad4c4f16a144ddf',1,'NiftiImage::operator=(const Block &amp;source)']]]
+  ['operator_20nifti_5fimage_20_2a',['operator nifti_image *',['../class_r_nifti_1_1_nifti_image.html#ab98f22f2af31c44fe2b64cd34980045d',1,'RNifti::NiftiImage']]],
+  ['operator_2d_3e',['operator-&gt;',['../class_r_nifti_1_1_nifti_image.html#a3f67e91ffd20b750f04ebcd0fad122cd',1,'RNifti::NiftiImage']]],
+  ['operator_3d',['operator=',['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a53fc2b90aecfbff3de279d89e3745383',1,'RNifti::NiftiImage::Block::operator=()'],['../class_r_nifti_1_1_nifti_image.html#a62e1339b330697e2f684880aa9465ef7',1,'RNifti::NiftiImage::operator=(const NiftiImage &amp;source)'],['../class_r_nifti_1_1_nifti_image.html#a7ec9393480a1395e14afc4fc5393faa1',1,'RNifti::NiftiImage::operator=(const Block &amp;source)']]]
 ];

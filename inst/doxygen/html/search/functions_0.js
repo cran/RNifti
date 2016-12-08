@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['block',['Block',['../struct_nifti_image_1_1_block.html#a41b715033f45aa50ffa25e0d4e7e1314',1,'NiftiImage::Block']]]
+  ['block',['Block',['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a9cfa242af69c4cf2d3e788170be52e8a',1,'RNifti::NiftiImage::Block']]]
 ];
