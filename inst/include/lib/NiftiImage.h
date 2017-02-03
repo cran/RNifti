@@ -70,6 +70,12 @@ public:
             memcpy(static_cast<char*>(image->data) + blockSize*index, source->data, blockSize);
             return *this;
         }
+        
+        /**
+         * Extract a vector of data from a block, casting it to any required element type
+        **/
+        template <typename TargetType>
+        std::vector<TargetType> getData () const;
     };
     
     /**
@@ -96,7 +102,7 @@ protected:
      * Copy the contents of a \c nifti_image to create a new image
      * @param source A pointer to a \c nifti_image
     **/
-    void copy (nifti_image * const source);
+    void copy (const nifti_image *source);
     
     /**
      * Copy the contents of another \c NiftiImage to create a new image
@@ -170,6 +176,19 @@ public:
     }
     
     /**
+     * Initialise from a block, copying in the data
+     * @param source A \c Block object, referring to part of another \c NiftiImage
+    **/
+    NiftiImage (const Block &source)
+        : image(NULL), persistent(false)
+    {
+        this->copy(source);
+#ifndef NDEBUG
+        Rprintf("Creating NiftiImage with pointer %p (from Block)\n", this->image);
+#endif
+    }
+    
+    /**
      * Initialise using an existing \c nifti_image pointer
      * @param image An existing \c nifti_image pointer, possibly \c NULL
      * @param copy If \c true, the image data will be copied; otherwise this object just wraps
@@ -214,7 +233,7 @@ public:
     /**
      * Destructor which frees the wrapped pointer, unless the object is marked as persistent
     **/
-    ~NiftiImage ()
+    virtual ~NiftiImage ()
     {
         if (!persistent)
         {
@@ -226,14 +245,24 @@ public:
     }
     
     /**
-     * Allows a \c NiftiImage object to be treated as a pointer to a \c nifti_image
+     * Allows a \c NiftiImage object to be treated as a pointer to a \c const \c nifti_image
     **/
-    operator nifti_image* () const { return image; }
+    operator const nifti_image* () const { return image; }
     
     /**
      * Allows a \c NiftiImage object to be treated as a pointer to a \c nifti_image
     **/
-    nifti_image * operator-> () const { return image; }
+    operator nifti_image* () { return image; }
+   
+    /**
+     * Allows a \c NiftiImage object to be treated as a pointer to a \c const \c nifti_image
+    **/
+    const nifti_image * operator-> () const { return image; }
+    
+    /**
+     * Allows a \c NiftiImage object to be treated as a pointer to a \c nifti_image
+    **/
+    nifti_image * operator-> () { return image; }
     
     /**
      * Copy assignment operator, which copies from its argument
@@ -263,7 +292,7 @@ public:
     }
     
     /**
-     * Allows the image to be marked as persistent, so that it can be passed back to R
+     * Marked the image as persistent, so that it can be passed back to R
      * @param persistent The new persistence state of the object
     **/
     void setPersistence (const bool persistent)
@@ -276,17 +305,17 @@ public:
     }
     
     /**
-     * Determines whether or not the internal pointer is \c NULL
+     * Determine whether or not the internal pointer is \c NULL
     **/
     bool isNull () const { return (image == NULL); }
     
     /**
-     * Determines whether or not the image is marked as persistent
+     * Determine whether or not the image is marked as persistent
     **/
     bool isPersistent () const { return persistent; }
     
     /**
-     * Returns the number of dimensions in the image
+     * Return the number of dimensions in the image
     **/
     int nDims () const
     {
@@ -294,6 +323,30 @@ public:
             return 0;
         else
             return image->ndim;
+    }
+    
+    /**
+     * Return the dimensions of the image
+     * @return A vector of integers giving the width in each dimension
+    **/
+    std::vector<int> dim () const
+    {
+        if (image == NULL)
+            return std::vector<int>();
+        else
+            return std::vector<int>(image->dim+1, image->dim+image->ndim+1);
+    }
+    
+    /**
+     * Return the dimensions of the pixels or voxels in the image
+     * @return A vector of floating-point values giving the pixel width in each dimension
+    **/
+    std::vector<float> pixdim () const
+    {
+        if (image == NULL)
+            return std::vector<float>();
+        else
+            return std::vector<float>(image->pixdim+1, image->pixdim+image->ndim+1);
     }
     
     /**
@@ -313,7 +366,13 @@ public:
     }
     
     /**
-     * Rescales the image, changing its image dimensions and pixel dimensions
+     * Extract a vector of data from the image, casting it to any required element type
+    **/
+    template <typename TargetType>
+    std::vector<TargetType> getData () const;
+    
+    /**
+     * Rescale the image, changing its image dimensions and pixel dimensions
      * @param scales Vector of scale factors along each dimension
      * @note No interpolation is performed on the pixel data, which is simply dropped
     **/
@@ -331,6 +390,35 @@ public:
      * @return A 4x4 matrix
     **/
     mat44 xform (const bool preferQuaternion = true) const;
+    
+    /**
+     * Return the number of blocks in the image
+    **/
+    int nBlocks () const
+    {
+        if (image == NULL)
+            return 0;
+        else
+            return image->dim[image->ndim];
+    }
+    
+    /**
+     * Extract a block from the image
+     * @param i The block number required
+     * @return A \ref Block object
+     * @note \ref slice and \ref volume are variants of this function specific to 3D and 4D images,
+     * respectively, which may be preferred in some cases for clarity
+    **/
+    const Block block (const int i) const { return Block(*this, nDims(), i); }
+    
+    /**
+     * Extract a block from the image
+     * @param i The block number required
+     * @return A \ref Block object
+     * @note \ref slice and \ref volume are variants of this function specific to 3D and 4D images,
+     * respectively, which may be preferred in some cases for clarity
+    **/
+    Block block (const int i) { return Block(*this, nDims(), i); }
     
     /**
      * Extract a slice block from a 3D image
@@ -402,7 +490,11 @@ public:
     Rcpp::RObject headerToList () const;
 };
 
-inline void NiftiImage::copy (nifti_image * const source)
+// Include helper functions
+#include "lib/NiftiImage_internal.h"
+using namespace internal;
+
+inline void NiftiImage::copy (const nifti_image *source)
 {
     if (image != NULL)
         nifti_image_free(image);
@@ -423,7 +515,7 @@ inline void NiftiImage::copy (nifti_image * const source)
 
 inline void NiftiImage::copy (const NiftiImage &source)
 {
-    nifti_image *sourceStruct = source;
+    const nifti_image *sourceStruct = source;
     copy(sourceStruct);
 }
 
@@ -432,7 +524,7 @@ inline void NiftiImage::copy (const Block &source)
     if (image != NULL)
         nifti_image_free(image);
     
-    nifti_image *sourceStruct = source.image;
+    const nifti_image *sourceStruct = source.image;
     if (sourceStruct == NULL)
         image = NULL;
     else
@@ -632,21 +724,6 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
     }
 }
 
-template <typename TargetType>
-inline void copyIfPresent (const Rcpp::List &list, const std::set<std::string> names, const std::string &name, TargetType &target)
-{
-    if (names.count(name) == 1)
-        target = Rcpp::as<TargetType>(list[name]);
-}
-
-// Special case for char, because Rcpp tries to be too clever and convert it to a string
-template <>
-inline void copyIfPresent (const Rcpp::List &list, const std::set<std::string> names, const std::string &name, char &target)
-{
-    if (names.count(name) == 1)
-        target = static_cast<char>(Rcpp::as<int>(list[name]));
-}
-
 inline void NiftiImage::initFromList (const Rcpp::RObject &object)
 {
     Rcpp::List list(object);
@@ -812,6 +889,8 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData)
         }
         else if (imageObject.inherits("nifti"))
             initFromNiftiS4(imageObject, readData);
+        else if (imageObject.inherits("anlz"))
+            throw std::runtime_error("Cannot currently convert objects of class \"anlz\"");
         else if (imageObject.inherits("MriImage"))
             initFromMriImage(imageObject, readData);
         else if (Rf_isVectorList(object))
@@ -828,18 +907,6 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData)
 #ifndef NDEBUG
     Rprintf("Creating NiftiImage with pointer %p (from SEXP)\n", this->image);
 #endif
-}
-
-inline mat33 topLeftCorner (const mat44 &matrix)
-{
-    mat33 newMatrix;
-    for (int i=0; i<3; i++)
-    {
-        for (int j=0; j<3; j++)
-            newMatrix.m[i][j] = matrix.m[i][j];
-    }
-    
-    return newMatrix;
 }
 
 inline void NiftiImage::updatePixdim (const std::vector<float> &pixdim)
@@ -1020,75 +1087,120 @@ inline mat44 NiftiImage::xform (const bool preferQuaternion) const
         return image->sto_xyz;
 }
 
-template <typename SourceType, typename TargetType>
-inline TargetType convertValue (SourceType value)
-{
-    return static_cast<TargetType>(value);
-}
-
-template <typename SourceType, typename TargetType>
-inline void convertArray (const SourceType *source, const size_t length, TargetType *target)
-{
-    std::transform(source, source + length, target, convertValue<SourceType,TargetType>);
-}
-
 template <typename TargetType>
-inline void changeDatatype (nifti_image *image, const short datatype)
+std::vector<TargetType> NiftiImage::Block::getData () const
 {
-    TargetType *data;
-    const size_t dataSize = image->nvox * sizeof(TargetType);
-    data = static_cast<TargetType *>(calloc(1, dataSize));
+    if (image.isNull())
+        return std::vector<TargetType>();
+    
+    size_t blockSize = 1;
+    for (int i=1; i<dimension; i++)
+        blockSize *= image->dim[i];
+    std::vector<TargetType> data(blockSize);
     
     switch (image->datatype)
     {
         case DT_UINT8:
-        convertArray(static_cast<uint8_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<uint8_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_INT16:
-        convertArray(static_cast<int16_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<int16_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_INT32:
-        convertArray(static_cast<int32_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<int32_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_FLOAT32:
-        convertArray(static_cast<float *>(image->data), image->nvox, data);
+        convertVector(static_cast<float *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_FLOAT64:
-        convertArray(static_cast<double *>(image->data), image->nvox, data);
+        convertVector(static_cast<double *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_INT8:
-        convertArray(static_cast<int8_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<int8_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_UINT16:
-        convertArray(static_cast<uint16_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<uint16_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_UINT32:
-        convertArray(static_cast<uint32_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<uint32_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_INT64:
-        convertArray(static_cast<int64_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<int64_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         case DT_UINT64:
-        convertArray(static_cast<uint64_t *>(image->data), image->nvox, data);
+        convertVector(static_cast<uint64_t *>(image->data) + blockSize*index, blockSize, data);
         break;
 
         default:
         throw std::runtime_error("Unsupported data type (" + std::string(nifti_datatype_string(image->datatype)) + ")");
     }
     
-    free(image->data);
-    image->data = data;
-    image->datatype = datatype;
-    nifti_datatype_sizes(datatype, &image->nbyper, &image->swapsize);
+    return data;
+}
+
+template <typename TargetType>
+std::vector<TargetType> NiftiImage::getData () const
+{
+    if (this->isNull())
+        return std::vector<TargetType>();
+    
+    std::vector<TargetType> data(image->nvox);
+    switch (image->datatype)
+    {
+        case DT_UINT8:
+        convertVector(static_cast<uint8_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_INT16:
+        convertVector(static_cast<int16_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_INT32:
+        convertVector(static_cast<int32_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_FLOAT32:
+        convertVector(static_cast<float *>(image->data), image->nvox, data);
+        break;
+
+        case DT_FLOAT64:
+        convertVector(static_cast<double *>(image->data), image->nvox, data);
+        break;
+
+        case DT_INT8:
+        convertVector(static_cast<int8_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_UINT16:
+        convertVector(static_cast<uint16_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_UINT32:
+        convertVector(static_cast<uint32_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_INT64:
+        convertVector(static_cast<int64_t *>(image->data), image->nvox, data);
+        break;
+
+        case DT_UINT64:
+        convertVector(static_cast<uint64_t *>(image->data), image->nvox, data);
+        break;
+
+        default:
+        throw std::runtime_error("Unsupported data type (" + std::string(nifti_datatype_string(image->datatype)) + ")");
+    }
+    
+    return data;
 }
 
 inline void NiftiImage::toFile (const std::string fileName, const short datatype) const
@@ -1188,73 +1300,6 @@ inline void NiftiImage::toFile (const std::string fileName, const std::string &d
         toFile(fileName, datatypeCodes[datatype]);
 }
 
-template <typename SourceType, int SexpType>
-inline Rcpp::RObject imageDataToArray (const nifti_image *source)
-{
-    if (source == NULL)
-        return Rcpp::RObject();
-    else if (source->data == NULL)
-    {
-        Rf_warning("Internal image contains no data - filling array with NAs");
-        Rcpp::Vector<SexpType> array(static_cast<int>(source->nvox));
-        // Rcpp's proxy infrastructure should handle converting NA_REAL to the appropriate NA
-        std::fill(array.begin(), array.end(), NA_REAL);
-        return array;
-    }
-    else
-    {
-        SourceType *original = static_cast<SourceType *>(source->data);
-        Rcpp::Vector<SexpType> array(static_cast<int>(source->nvox));
-        
-        if (SexpType == INTSXP || SexpType == LGLSXP)
-            std::transform(original, original + source->nvox, array.begin(), convertValue<SourceType,int>);
-        else if (SexpType == REALSXP)
-            std::transform(original, original + source->nvox, array.begin(), convertValue<SourceType,double>);
-        else
-            throw std::runtime_error("Only numeric arrays can be created");
-        
-        return array;
-    }
-}
-
-inline void finaliseNiftiImage (SEXP xptr)
-{
-    NiftiImage *object = (NiftiImage *) R_ExternalPtrAddr(xptr);
-    object->setPersistence(false);
-    delete object;
-    R_ClearExternalPtr(xptr);
-}
-
-inline void addAttributes (Rcpp::RObject &object, nifti_image *source, const bool realDim = true)
-{
-    const int nDims = source->dim[0];
-    Rcpp::IntegerVector dim(source->dim+1, source->dim+1+nDims);
-    
-    if (realDim)
-        object.attr("dim") = dim;
-    else
-        object.attr("imagedim") = dim;
-    
-    Rcpp::DoubleVector pixdim(source->pixdim+1, source->pixdim+1+nDims);
-    object.attr("pixdim") = pixdim;
-    
-    if (source->xyz_units == NIFTI_UNITS_UNKNOWN && source->time_units == NIFTI_UNITS_UNKNOWN)
-        object.attr("pixunits") = "Unknown";
-    else
-    {
-        Rcpp::CharacterVector pixunits(2);
-        pixunits[0] = nifti_units_string(source->xyz_units);
-        pixunits[1] = nifti_units_string(source->time_units);
-        object.attr("pixunits") = pixunits;
-    }
-    
-    NiftiImage *wrappedSource = new NiftiImage(source, true);
-    wrappedSource->setPersistence(true);
-    Rcpp::XPtr<NiftiImage> xptr(wrappedSource);
-    R_RegisterCFinalizerEx(SEXP(xptr), &finaliseNiftiImage, FALSE);
-    object.attr(".nifti_image_ptr") = xptr;
-}
-
 inline Rcpp::RObject NiftiImage::toArray () const
 {
     Rcpp::RObject array;
@@ -1310,7 +1355,7 @@ inline Rcpp::RObject NiftiImage::toArray () const
     
     addAttributes(array, image);
     const Rcpp::IntegerVector dim = array.attr("dim");
-    array.attr("class") = Rcpp::CharacterVector::create("niftiImage");
+    array.attr("class") = Rcpp::CharacterVector::create("niftiImage", "array");
     return array;
 }
 
