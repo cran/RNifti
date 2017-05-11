@@ -1,6 +1,6 @@
-9a92a3667b96eed7a9e0dd3316d17389 *DESCRIPTION
+422f0fdf7c9cba9fd34ac81b0ec995c3 *DESCRIPTION
 73700f13676ed98ec5e9a4b78a71521c *NAMESPACE
-4eaa74606c5c64ae6e423da0fe80c2a5 *NEWS
+5d7d0dbe5ef145c53c13d689fdf95676 *NEWS
 522e649998b6ae37eb5a27660a23ef49 *R/image.R
 70c0ab5f53bf06a973b18f15a1146e8b *R/nifti.R
 0ab21b3d170e666eb4af39c7ade2bef7 *R/xform.R
@@ -140,7 +140,7 @@ d5a3e094c590d5113232b74cd902f58f *inst/doxygen/html/tab_s.png
 30c091d208079613a19efc08f87849de *inst/extdata/example.nii.gz
 4e83f54fdd3cb670823753e6f49859c3 *inst/include/RNifti.h
 24006ded0251406f93de4cd953f1f46b *inst/include/RNiftiAPI.h
-b04cd2f3930f555b00d153673d9bc253 *inst/include/lib/NiftiImage.h
+307ebcc96334cf797c209436e47f61e3 *inst/include/lib/NiftiImage.h
 e63e151afc03945d40ae7f2ac0a85205 *inst/include/lib/NiftiImage_internal.h
 fa8b37f676aab680816c08451fe7b1bd *inst/include/lib/print.h
 a34af6ec4b25ecc1a68459bbb5dc76c9 *inst/include/niftilib/nifti1.h
