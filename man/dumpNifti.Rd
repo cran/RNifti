@@ -32,10 +32,9 @@ dumpNifti(system.file("extdata", "example.nii.gz", package="RNifti"))
 dumpNifti(array(0L, dim=c(10,10)))
 
 }
+\references{
+The NIfTI-1 standard (\url{http://www.nitrc.org/docman/view.php/26/64/nifti1.h}).
+}
 \author{
 Jon Clayden <code@clayden.org>
 }
-\references{
-The NIfTI-1 standard (\url{http://nifti.nimh.nih.gov/nifti-1}).
-}
-

@@ -39,13 +39,12 @@ readNifti(path)
 readNifti(path, internal=TRUE)
 
 }
-\author{
-Jon Clayden <code@clayden.org>
-}
 \references{
-The NIfTI-1 standard (\url{http://nifti.nimh.nih.gov/nifti-1}).
+The NIfTI-1 standard (\url{http://www.nitrc.org/docman/view.php/26/64/nifti1.h}).
 }
 \seealso{
 \code{\link{writeNifti}}
 }
-
+\author{
+Jon Clayden <code@clayden.org>
+}
