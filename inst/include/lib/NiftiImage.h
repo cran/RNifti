@@ -2,13 +2,14 @@
 #define _NIFTI_IMAGE_H_
 
 
-#ifndef _NO_R__
+#ifdef USING_R
 
 #include <Rcpp.h>
 
 #else
 
 #define R_NegInf -INFINITY
+#define ISNAN(x) (x != x)
 
 #include <stdint.h>
 #include <cstddef>
@@ -20,6 +21,7 @@
 #include <algorithm>
 #include <map>
 #include <locale>
+#include <limits>
 
 #endif
 
@@ -101,7 +103,7 @@ public:
         std::vector<TargetType> getData () const;
     };
     
-#ifndef _NO_R__ 
+#ifdef USING_R
     /**
      * Convert between R \c SEXP object type and \c nifti_image datatype codes
      * @param sexpType A numeric R \c SEXP type code
@@ -146,6 +148,40 @@ public:
         return result;
     }
     
+    /**
+     * Get the NIfTI format version used by the file at the specified path
+     * @param path A string specifying a file path
+     * @return An integer: -1 if the file is not present or not valid, 0 for ANALYZE-7.5, or
+     *         a value greater than 0 for NIfTI
+    **/
+    static int fileVersion (const std::string &path)
+    {
+        nifti_1_header *header = nifti_read_header(path.c_str(), NULL, false);
+        if (header == NULL)
+            return -1;
+        else
+        {
+            int version = NIFTI_VERSION(*header);
+            if (version == 0)
+            {
+                // NIfTI-2 has a 540-byte header - check for this or its byte-swapped equivalent
+                if (header->sizeof_hdr == 540 || header->sizeof_hdr == 469893120)
+                {
+                    // The magic number has moved in NIfTI-2, so find it by byte offset
+                    const char *magic = (char *) header + 4;
+                    if (strncmp(magic,"ni2",3) == 0 || strncmp(magic,"n+2",3) == 0)
+                        version = 2;
+                }
+                else if (!nifti_hdr_looks_good(header))
+                {
+                    // Not plausible as ANALYZE, so return -1
+                    version = -1;
+                }
+            }
+            return version;
+        }
+    }
+    
 
 protected:
     nifti_image *image;         /**< The wrapped \c nifti_image pointer */
@@ -170,7 +206,7 @@ protected:
     void copy (const Block &source);
 
 
-#ifndef _NO_R__
+#ifdef USING_R
 
     /**
      * Initialise the object from an S4 object of class \c "nifti"
@@ -281,7 +317,15 @@ public:
 #endif
     }
     
-#ifndef _NO_R__ 
+    /**
+     * Initialise using a path string and sequence of required volumes
+     * @param path A string specifying a path to a valid NIfTI-1 file, possibly gzipped
+     * @param volumes The volumes to read in (squashing all dimensions above the third together)
+     * @exception runtime_error If reading from the file fails, or \c volumes is empty
+    **/
+    NiftiImage (const std::string &path, const std::vector<int> &volumes);
+    
+#ifdef USING_R
     /**
      * Initialise from an R object
      * @param object The source object
@@ -493,12 +537,12 @@ public:
     **/
     NiftiImage & reorient (const std::string &orientation);
     
-#ifndef _NO_R__
+#ifdef USING_R
     /**
      * Update the image from an R array
-     * @param array An R array object
+     * @param array An R array or list object
     **/
-    NiftiImage & update (const SEXP array);
+    NiftiImage & update (const Rcpp::RObject &object);
 #endif
 
     /**
@@ -579,7 +623,7 @@ public:
     **/
     void toFile (const std::string fileName, const std::string &datatype) const;
     
-#ifndef _NO_R__
+#ifdef USING_R
     
     /**
      * Create an R array from the image
@@ -669,7 +713,7 @@ inline void NiftiImage::copy (const Block &source)
     persistent = false;
 }
 
-#ifndef _NO_R__
+#ifdef USING_R
 
 // Convert an S4 "nifti" object, as defined in the oro.nifti package, to a "nifti_image" struct
 inline void NiftiImage::initFromNiftiS4 (const Rcpp::RObject &object, const bool copyData)
@@ -856,84 +900,7 @@ inline void NiftiImage::initFromList (const Rcpp::RObject &object)
     Rcpp::List list(object);
     nifti_1_header *header = nifti_make_new_header(NULL, DT_FLOAT64);
     
-    const Rcpp::CharacterVector _names = list.names();
-    std::set<std::string> names;
-    for (Rcpp::CharacterVector::const_iterator it=_names.begin(); it!=_names.end(); it++)
-        names.insert(Rcpp::as<std::string>(*it));
-    
-    internal::copyIfPresent(list, names, "sizeof_hdr", header->sizeof_hdr);
-    
-    internal::copyIfPresent(list, names, "dim_info", header->dim_info);
-    if (names.count("dim") == 1)
-    {
-        std::vector<short> dim = list["dim"];
-        for (size_t i=0; i<std::min(dim.size(),size_t(8)); i++)
-            header->dim[i] = dim[i];
-    }
-    
-    internal::copyIfPresent(list, names, "intent_p1", header->intent_p1);
-    internal::copyIfPresent(list, names, "intent_p2", header->intent_p2);
-    internal::copyIfPresent(list, names, "intent_p3", header->intent_p3);
-    internal::copyIfPresent(list, names, "intent_code", header->intent_code);
-    
-    internal::copyIfPresent(list, names, "datatype", header->datatype);
-    internal::copyIfPresent(list, names, "bitpix", header->bitpix);
-    
-    internal::copyIfPresent(list, names, "slice_start", header->slice_start);
-    if (names.count("pixdim") == 1)
-    {
-        std::vector<float> pixdim = list["pixdim"];
-        for (size_t i=0; i<std::min(pixdim.size(),size_t(8)); i++)
-            header->pixdim[i] = pixdim[i];
-    }
-    internal::copyIfPresent(list, names, "vox_offset", header->vox_offset);
-    internal::copyIfPresent(list, names, "scl_slope", header->scl_slope);
-    internal::copyIfPresent(list, names, "scl_inter", header->scl_inter);
-    internal::copyIfPresent(list, names, "slice_end", header->slice_end);
-    internal::copyIfPresent(list, names, "slice_code", header->slice_code);
-    internal::copyIfPresent(list, names, "xyzt_units", header->xyzt_units);
-    internal::copyIfPresent(list, names, "cal_max", header->cal_max);
-    internal::copyIfPresent(list, names, "cal_min", header->cal_min);
-    internal::copyIfPresent(list, names, "slice_duration", header->slice_duration);
-    internal::copyIfPresent(list, names, "toffset", header->toffset);
-    
-    if (names.count("descrip") == 1)
-        strcpy(header->descrip, Rcpp::as<std::string>(list["descrip"]).substr(0,79).c_str());
-    if (names.count("aux_file") == 1)
-        strcpy(header->aux_file, Rcpp::as<std::string>(list["aux_file"]).substr(0,23).c_str());
-    
-    internal::copyIfPresent(list, names, "qform_code", header->qform_code);
-    internal::copyIfPresent(list, names, "sform_code", header->sform_code);
-    internal::copyIfPresent(list, names, "quatern_b", header->quatern_b);
-    internal::copyIfPresent(list, names, "quatern_c", header->quatern_c);
-    internal::copyIfPresent(list, names, "quatern_d", header->quatern_d);
-    internal::copyIfPresent(list, names, "qoffset_x", header->qoffset_x);
-    internal::copyIfPresent(list, names, "qoffset_y", header->qoffset_y);
-    internal::copyIfPresent(list, names, "qoffset_z", header->qoffset_z);
-    
-    if (names.count("srow_x") == 1)
-    {
-        std::vector<float> srow_x = list["srow_x"];
-        for (size_t i=0; i<std::min(srow_x.size(),size_t(4)); i++)
-            header->srow_x[i] = srow_x[i];
-    }
-    if (names.count("srow_y") == 1)
-    {
-        std::vector<float> srow_y = list["srow_y"];
-        for (size_t i=0; i<std::min(srow_y.size(),size_t(4)); i++)
-            header->srow_y[i] = srow_y[i];
-    }
-    if (names.count("srow_z") == 1)
-    {
-        std::vector<float> srow_z = list["srow_z"];
-        for (size_t i=0; i<std::min(srow_z.size(),size_t(4)); i++)
-            header->srow_z[i] = srow_z[i];
-    }
-    
-    if (names.count("intent_name") == 1)
-        strcpy(header->intent_name, Rcpp::as<std::string>(list["intent_name"]).substr(0,15).c_str());
-    if (names.count("magic") == 1)
-        strcpy(header->magic, Rcpp::as<std::string>(list["magic"]).substr(0,3).c_str());
+    internal::updateHeader(header, list);
     
     this->image = nifti_convert_nhdr2nim(*header, NULL);
     this->image->data = NULL;
@@ -996,7 +963,7 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData)
             resolved = true;
             
             if (imageObject.hasAttribute("dim"))
-                update(object);
+                update(imageObject);
         }
         else if (Rf_isString(object))
             throw std::runtime_error("Internal image is not valid");
@@ -1037,7 +1004,29 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData)
 #endif
 }
 
-#endif // _NO_R__
+#endif // USING_R
+
+inline NiftiImage::NiftiImage (const std::string &path, const std::vector<int> &volumes)
+    : persistent(false)
+{
+    if (volumes.empty())
+        throw std::runtime_error("The vector of volumes is empty");
+    
+    nifti_brick_list brickList;
+    this->image = nifti_image_read_bricks(path.c_str(), volumes.size(), &volumes[0], &brickList);
+    if (this->image == NULL)
+        throw std::runtime_error("Failed to read image from path " + path);
+    
+    size_t brickSize = image->nbyper * image->nx * image->ny * image->nz;
+    image->data = calloc(1, nifti_get_volsize(image));
+    for (int i=0; i<brickList.nbricks; i++)
+        memcpy((char *) image->data + i * brickSize, brickList.bricks[i], brickSize);
+    nifti_free_NBL(&brickList);
+    
+#ifndef NDEBUG
+    Rprintf("Creating NiftiImage with pointer %p (from string and volume vector)\n", this->image);
+#endif
+}
 
 inline void NiftiImage::updatePixdim (const std::vector<float> &pixdim)
 {
@@ -1334,67 +1323,88 @@ inline NiftiImage & NiftiImage::reorient (const std::string &orientation)
     return reorient(codes[0], codes[1], codes[2]);
 }
 
-#ifndef _NO_R__
+#ifdef USING_R
 
-inline NiftiImage & NiftiImage::update (const SEXP array)
+inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
 {
-    Rcpp::RObject object(array);
-    if (!object.hasAttribute("dim"))
-        return *this;
-    
-    for (int i=0; i<8; i++)
-        image->dim[i] = 0;
-    const std::vector<int> dimVector = object.attr("dim");
-    
-    const int nDims = std::min(7, int(dimVector.size()));
-    image->dim[0] = nDims;
-    for (int i=0; i<nDims; i++)
-        image->dim[i+1] = dimVector[i];
-    
-    if (object.hasAttribute("pixdim"))
+    if (Rf_isVectorList(object))
     {
-        const std::vector<float> pixdimVector = object.attr("pixdim");
-        updatePixdim(pixdimVector);
+        Rcpp::List list(object);
+        nifti_1_header *header = NULL;
+        if (this->isNull())
+        {
+            header = nifti_make_new_header(NULL, DT_FLOAT64);
+            internal::updateHeader(header, list, true);
+        }
+        else
+        {
+            header = (nifti_1_header *) calloc(1, sizeof(nifti_1_header));
+            *header = nifti_convert_nim2nhdr(image);
+            internal::updateHeader(header, list, true);
+        }
+        
+        if (header != NULL)
+        {
+            nifti_image *newImage = nifti_convert_nhdr2nim(*header, NULL);
+            if (this->image->data != NULL)
+            {
+                size_t dataSize = nifti_get_volsize(image);
+                newImage->data = calloc(1, dataSize);
+                memcpy(newImage->data, image->data, dataSize);
+            }
+            if (!persistent)
+                nifti_image_free(image);
+            this->image = newImage;
+        }
     }
-    
-    if (object.hasAttribute("pixunits"))
+    else if (object.hasAttribute("dim"))
     {
-        const std::vector<std::string> pixunitsVector = object.attr("pixunits");
-        setPixunits(pixunitsVector);
+        for (int i=0; i<8; i++)
+            image->dim[i] = 0;
+        const std::vector<int> dimVector = object.attr("dim");
+    
+        const int nDims = std::min(7, int(dimVector.size()));
+        image->dim[0] = nDims;
+        for (int i=0; i<nDims; i++)
+            image->dim[i+1] = dimVector[i];
+    
+        if (object.hasAttribute("pixdim"))
+        {
+            const std::vector<float> pixdimVector = object.attr("pixdim");
+            updatePixdim(pixdimVector);
+        }
+    
+        if (object.hasAttribute("pixunits"))
+        {
+            const std::vector<std::string> pixunitsVector = object.attr("pixunits");
+            setPixunits(pixunitsVector);
+        }
+    
+        // This NIfTI-1 library function clobbers dim[0] if the last dimension is unitary; we undo that here
+        nifti_update_dims_from_array(image);
+        image->dim[0] = image->ndim = nDims;
+    
+        image->datatype = NiftiImage::sexpTypeToNiftiType(object.sexp_type());
+        nifti_datatype_sizes(image->datatype, &image->nbyper, NULL);
+    
+        if (!persistent)
+            nifti_image_unload(image);
+    
+        const size_t dataSize = nifti_get_volsize(image);
+        image->data = calloc(1, dataSize);
+        if (image->datatype == DT_INT32)
+            memcpy(image->data, INTEGER(object), dataSize);
+        else
+            memcpy(image->data, REAL(object), dataSize);
+    
+        image->scl_slope = 0.0;
+        image->scl_inter = 0.0;
     }
-    
-    // This NIfTI-1 library function clobbers dim[0] if the last dimension is unitary; we undo that here
-    nifti_update_dims_from_array(image);
-    image->dim[0] = image->ndim = nDims;
-    
-    image->datatype = NiftiImage::sexpTypeToNiftiType(object.sexp_type());
-    nifti_datatype_sizes(image->datatype, &image->nbyper, NULL);
-    
-    if (!persistent)
-        nifti_image_unload(image);
-    
-    const size_t dataSize = nifti_get_volsize(image);
-    image->data = calloc(1, dataSize);
-    if (image->datatype == DT_INT32)
-    {
-        memcpy(image->data, INTEGER(object), dataSize);
-        image->cal_min = static_cast<float>(*std::min_element(INTEGER(object), INTEGER(object)+image->nvox));
-        image->cal_max = static_cast<float>(*std::max_element(INTEGER(object), INTEGER(object)+image->nvox));
-    }
-    else
-    {
-        memcpy(image->data, REAL(object), dataSize);
-        image->cal_min = static_cast<float>(*std::min_element(REAL(object), REAL(object)+image->nvox));
-        image->cal_max = static_cast<float>(*std::max_element(REAL(object), REAL(object)+image->nvox));
-    }
-    
-    image->scl_slope = 0.0;
-    image->scl_inter = 0.0;
     
     return *this;
 }
 
-#endif// _NO_R__
+#endif // USING_R
 
 inline mat44 NiftiImage::xform (const bool preferQuaternion) const
 {
@@ -1586,7 +1596,7 @@ inline void NiftiImage::toFile (const std::string fileName, const std::string &d
     toFile(fileName, internal::stringToDatatype(datatype));
 }
 
-#ifndef _NO_R__
+#ifdef USING_R
 
 inline Rcpp::RObject NiftiImage::toArray () const
 {
@@ -1703,7 +1713,7 @@ inline Rcpp::RObject NiftiImage::headerToList () const
     return result;
 }
 
-#endif // _NO_R__
+#endif // USING_R
 
 } // namespace
 

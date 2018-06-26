@@ -5,7 +5,7 @@ The [NIfTI-1 format](http://www.nitrc.org/docman/view.php/26/64/nifti1.h) is a p
 There are several packages available for reading and writing NIfTI-1 files in R, and these are summarised in the [Medical Imaging task view](https://cran.r-project.org/view=MedicalImaging). However, `RNifti` is distinguished by its
 
 - [extremely strong performance](#performance), in terms of speed;
-- [C/C++ API](#api), allowing access to NIfTI images even in compiled code in other packages; and
+- [C/C++ API](#api), allowing access to NIfTI images in compiled code in other R packages, or even in [standalone C++ code](#use-in-pure-c-projects); and
 - modest dependencies, consisting of only R itself and the very widely-used [Rcpp](https://cran.r-project.org/package=Rcpp) C++ wrapper library.
 
 The latest development version of the package can always be installed from GitHub using the `devtools` package.
@@ -186,7 +186,7 @@ void myfunction (SEXP image_)
 
 ## Use in pure C++ projects
 
-Thanks to contributions from @soolijoo, it is possible (as of package version 0.7.0) to use the `NiftiImage` C++ class in standalone C++ projects. You will need the following files:
+Thanks to contributions from [@soolijoo](https://github.com/soolijoo), it is possible (as of package version 0.7.0) to use the `NiftiImage` C++ class in standalone C++ projects. You will need the following files:
 
 | Path                            | Purpose                                                                                             |
 | ------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -198,4 +198,10 @@ Thanks to contributions from @soolijoo, it is possible (as of package version 0.
 | `src/znzlib/znzlib.c`           | Source for I/O functions from the NIfTI-1 reference implementation                                  |
 | `src/zlib/*`                    | `zlib` source files for reading and writing gzipped files (optional, as above)                      |
 
-Note that the `NiftiImage` class is header-only, but C code from the NIfTI-1 reference implementation will need to be compiled and linked into the project. The constant `_NO_R__` should be defined, and `print.h` included, before including `NiftiImage.h`, so that the R API is not used.
+Note that the `NiftiImage` class is header-only, but C code from the NIfTI-1 reference implementation will need to be compiled and linked into the project. The `print.h` header should be included before including `NiftiImage.h`, so that the R API is not used for printing error messages. The [`standalone` directory](https://github.com/jonclayden/RNifti/tree/master/standalone) provides a minimal example.
+
+## The NIfTI-2 format
+
+The [NIfTI-2 format](https://nifti.nimh.nih.gov/nifti-2) is a evolution of the far more widely-used NIfTI-1. It primarily [uses wider types for various fields](https://www.nitrc.org/forum/forum.php?thread_id=2148&forum_id=1941), to support large datasets and improve precision.
+
+Unfortunately, the NIfTI-1 version of the reference library is not forwards-compatible with NIfTI-2, and does not recognise NIfTI-2 files as valid, while the NIfTI-2 version changes the definition of the `nifti_image` data structure, and hence the return type of several core functions, rendering it potentially incompatible with software written for the original library. As a result, adding full NIfTI-2 support to `RNifti` without breaking existing code is not straightforward. Nevertheless, as of `RNifti` version 0.8.0, R function `niftiVersion()` and C++ static method `NiftiImage::fileVersion()` offer a forwards-compatible way to determine the version of the format used by a particular file, so that calling functions can take action accordingly.
