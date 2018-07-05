@@ -1,4 +1,4 @@
-0afe362a4ab979170d3ee937b15d6ad4 *DESCRIPTION
+c51ad849e4f217b6c56d42875dcd52ab *DESCRIPTION
 acae6be5ad74132cebcd524a391b0be9 *NAMESPACE
 38c31f2aec7d66450fd88c14cf8c385e *NEWS
 522e649998b6ae37eb5a27660a23ef49 *R/image.R
@@ -144,7 +144,7 @@ dde1deee32aabaf283846e913dbe7ebf *inst/include/RNifti.h
 24006ded0251406f93de4cd953f1f46b *inst/include/RNiftiAPI.h
 64b787c9cabc1284fa5d2f9870c08378 *inst/include/lib/NiftiImage.h
 0d9a178d4269d502e920e9e21ee58520 *inst/include/lib/NiftiImage_internal.h
-e70cfd0317477b6a0f03fcd1264b4a50 *inst/include/lib/print.h
+6f1720a098598dd398a7c6443df7d559 *inst/include/lib/print.h
 a34af6ec4b25ecc1a68459bbb5dc76c9 *inst/include/niftilib/nifti1.h
 c04802572389eb06064486812e6563ac *inst/include/niftilib/nifti1_io.h
 5407d4c937d8f925665f71aad35c12fa *inst/include/zlib/zconf.h
