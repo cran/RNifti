@@ -27,15 +27,15 @@ An array or internal image, with class \code{"niftiImage"} (and
   \code{file} has length greater than one.
 }
 \description{
-This function reads one or more NIfTI-1 files into R, using the standard
-NIfTI-1 C library.
+This function reads one or more NIfTI-1 or ANALYZE-7.5 files into R, using
+the standard NIfTI-1 C library.
 }
 \note{
 If the \code{internal} argument is \code{FALSE} (the default), the
   data type of the image pointer will be set to match one of R's native
   numeric data types, i.e., 32-bit signed integer or 64-bit double-precision
   floating-point. In these circumstances the data type reported by the
-  \code{\link{dumpNifti}} function will therefore not, in general, match
+  \code{\link{niftiHeader}} function will therefore not, in general, match
   the storage type used in the file. See also the \code{datatype} argument
   to \code{\link{writeNifti}}.
 }

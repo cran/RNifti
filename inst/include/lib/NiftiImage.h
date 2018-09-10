@@ -9,7 +9,6 @@
 #else
 
 #define R_NegInf -INFINITY
-#define ISNAN(x) (x != x)
 
 #include <stdint.h>
 #include <cstddef>
@@ -37,6 +36,47 @@
 **/
 
 namespace RNifti {
+
+namespace internal {
+
+struct vec3
+{
+    float v[3];
+
+    vec3 operator-() const
+    {
+        vec3 r;
+        r.v[0] = -v[0];
+        r.v[1] = -v[1];
+        r.v[2] = -v[2];
+        return r;
+    }
+};
+
+inline mat33 topLeftCorner (const mat44 &matrix)
+{
+    mat33 newMatrix;
+    for (int i=0; i<3; i++)
+    {
+        for (int j=0; j<3; j++)
+            newMatrix.m[i][j] = matrix.m[i][j];
+    }
+    return newMatrix;
+}
+
+inline vec3 matrixVectorProduct (const mat33 &matrix, const vec3 &vector)
+{
+    vec3 newVector;
+    for (int i=0; i<3; i++)
+    {
+        newVector.v[i] = 0.0;
+        for (int j=0; j<3; j++)
+            newVector.v[i] += matrix.m[i][j] * vector.v[j];
+    }
+    return newVector;
+}
+
+} // internal namespace
 
 /**
  * Thin wrapper around a C-style \c nifti_image struct that allows C++-style destruction
@@ -98,9 +138,13 @@ public:
         
         /**
          * Extract a vector of data from a block, casting it to any required element type
+         * @param useSlope If \c true, the default, then the data will be adjusted for the slope
+         * and intercept stored with the image, if any
+         * @note If the slope and intercept are applied, there is no guarantee that the adjusted
+         * values will fit within the requested type. No check is made for this
         **/
         template <typename TargetType>
-        std::vector<TargetType> getData () const;
+        std::vector<TargetType> getData (const bool useSlope = true) const;
     };
     
 #ifdef USING_R
@@ -120,6 +164,19 @@ public:
             throw std::runtime_error("Array elements must be numeric");
     }
 #endif
+    
+    /**
+     * Extract the pure rotation part of a 4x4 xform matrix
+     * @param matrix An xform matrix
+     * @return A 3x3 rotation matrix
+    **/
+    static mat33 xformToRotation (const mat44 matrix)
+    {
+        float qb, qc, qd, qfac;
+        nifti_mat44_to_quatern(matrix, &qb, &qc, &qd, NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
+        mat44 rotationMatrix = nifti_quatern_to_mat44(qb, qc, qd, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, qfac);
+        return internal::topLeftCorner(rotationMatrix);
+    }
     
     /**
      * Convert a 4x4 xform matrix to a string describing its canonical axes
@@ -477,21 +534,29 @@ public:
     
     /**
      * Extract a vector of data from the image, casting it to any required element type
+     * @param useSlope If \c true, the default, then the data will be adjusted for the slope and
+     * intercept stored with the image, if any
+     * @note If the slope and intercept are applied, there is no guarantee that the adjusted values
+     * will fit within the requested type. No check is made for this
     **/
     template <typename TargetType>
-    std::vector<TargetType> getData () const;
+    std::vector<TargetType> getData (const bool useSlope = true) const;
     
     /**
      * Change the datatype of the image, casting the pixel data if present
      * @param datatype A NIfTI datatype code
+     * @param useSlope If \c true, and conversion is to an integer type, the data will be rescaled
+     * and the image's slope and intercept set to capture the full range of original values
     **/
-    NiftiImage & changeDatatype (const short datatype);
+    NiftiImage & changeDatatype (const short datatype, const bool useSlope = false);
     
     /**
      * Change the datatype of the image, casting the pixel data if present
      * @param datatype A string specifying the new datatype
+     * @param useSlope If \c true, and conversion is to an integer type, the data will be rescaled
+     * and the image's slope and intercept set to capture the full range of original values
     **/
-    NiftiImage & changeDatatype (const std::string &datatype);
+    NiftiImage & changeDatatype (const std::string &datatype, const bool useSlope = false);
     
     /**
      * Replace the pixel data in the image with the contents of a vector
@@ -544,7 +609,7 @@ public:
     **/
     NiftiImage & update (const Rcpp::RObject &object);
 #endif
-
+    
     /**
      * Obtain an xform matrix, indicating the orientation of the image
      * @param preferQuaternion If \c true, use the qform matrix in preference to the sform
@@ -1152,6 +1217,13 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
     const int codes[3] = { icode, jcode, kcode };
     const mat44 native = this->xform();
     
+    // Calculate the origin, which requires inverting the current xform
+    // Here we use a simplified formula that exploits blockwise inversion and the nature of xforms
+    internal::vec3 origin;
+    for (int i=0; i<3; i++)
+        origin.v[i] = native.m[i][3];
+    origin = -internal::matrixVectorProduct(nifti_mat33_inverse(internal::topLeftCorner(native)), origin);
+    
     // Create a target xform (rotation matrix only)
     mat33 target;
     for (int j=0; j<3; j++)
@@ -1197,7 +1269,7 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
     
     // The transform is t(approx_old_xform) %*% target_xform
     // The new xform is old_xform %*% transform
-    // NB: "transform" is really 4x4, but the last row and column are filled implicitly during the multiplication loop
+    // NB: "transform" is really 4x4, but the last row is simple and the last column is filled below
     mat33 transform = nifti_mat33_mul(nativeAxesTransposed, target);
     mat44 result;
     for (int i=0; i<4; i++)
@@ -1205,8 +1277,47 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         for (int j=0; j<3; j++)
             result.m[i][j] = native.m[i][0] * transform.m[0][j] + native.m[i][1] * transform.m[1][j] + native.m[i][2] * transform.m[2][j];
         
-        result.m[i][3] = native.m[i][3];
+        result.m[3][i] = i == 3 ? 1.0 : 0.0;
     }
+    
+    // Extract the mapping between dimensions and the signs
+    // These vectors are all indexed in the target space, except "revsigns"
+    int locs[3], signs[3], newdim[3], revsigns[3];
+    float newpixdim[3];
+    double maxes[3] = { R_NegInf, R_NegInf, R_NegInf };
+    internal::vec3 offset;
+    for (int j=0; j<3; j++)
+    {
+        // Find the largest absolute value in each column, which gives the old dimension corresponding to each new dimension
+        for (int i=0; i<3; i++)
+        {
+            const double value = static_cast<double>(transform.m[i][j]);
+            if (fabs(value) > maxes[j])
+            {
+                maxes[j] = fabs(value);
+                signs[j] = value > 0.0 ? 1 : -1;
+                locs[j] = i;
+            }
+        }
+        
+        // Obtain the sign for the reverse mapping
+        revsigns[locs[j]] = signs[j];
+        
+        // Permute dim and pixdim
+        newdim[j] = image->dim[locs[j]+1];
+        newpixdim[j] = image->pixdim[locs[j]+1];
+        
+        // Flip and/or permute the origin
+        if (signs[j] < 0)
+            offset.v[j] = image->dim[locs[j]+1] - origin.v[locs[j]] - 1.0;
+        else
+            offset.v[j] = origin.v[locs[j]];
+    }
+    
+    // Convert the origin back to an xform offset and insert it
+    offset = -internal::matrixVectorProduct(internal::topLeftCorner(result), offset);
+    for (int i=0; i<3; i++)
+        result.m[i][3] = offset.v[i];
     
     // Update the xforms with nonzero codes
     if (image->qform_code > 0)
@@ -1221,34 +1332,13 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         image->sto_ijk = nifti_mat44_inverse(image->sto_xyz);
     }
     
-    // Extract the mapping between dimensions and the signs
-    int locs[3], signs[3], newdim[3];
-    float newpixdim[3];
-    double maxes[3] = { R_NegInf, R_NegInf, R_NegInf };
-    for (int j=0; j<3; j++)
-    {
-        for (int i=0; i<3; i++)
-        {
-            const double value = static_cast<double>(transform.m[i][j]);
-            if (fabs(value) > maxes[j])
-            {
-                maxes[j] = fabs(value);
-                signs[j] = value > 0.0 ? 1 : -1;
-                locs[j] = i;
-            }
-        }
-        
-        // Permute dim and pixdim
-        newdim[j] = image->dim[locs[j]+1];
-        newpixdim[j] = image->pixdim[locs[j]+1];
-    }
-    
-    // Calculate strides in target space
+    // Calculate strides: the step in target space associated with each dimension in source space
     ptrdiff_t strides[3];
     strides[locs[0]] = 1;
-    for (int n=1; n<3; n++)
-        strides[locs[n]] = strides[locs[n-1]] * image->dim[locs[n-1]+1];
+    strides[locs[1]] = strides[locs[0]] * image->dim[locs[0]+1];
+    strides[locs[2]] = strides[locs[1]] * image->dim[locs[1]+1];
     
+    // Permute the data (if present)
     if (image->data != NULL)
     {    
         size_t volSize = size_t(image->nx * image->ny * image->nz);
@@ -1261,7 +1351,7 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         size_t volStart = 0;
         for (int i=0; i<3; i++)
         {
-            if (signs[i] < 0)
+            if (revsigns[i] < 0)
                 volStart += (image->dim[i+1] - 1) * strides[i];
         }
         
@@ -1271,15 +1361,15 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         {
             for (int k=0; k<image->nz; k++)
             {
-                ptrdiff_t offset = k * strides[2] * signs[2];
+                ptrdiff_t offset = k * strides[2] * revsigns[2];
                 for (int j=0; j<image->ny; j++)
                 {
                     for (int i=0; i<image->nx; i++)
                     {
                         newData[volStart + offset] = *it++;
-                        offset += strides[0] * signs[0];
+                        offset += strides[0] * revsigns[0];
                     }
-                    offset += strides[1] * signs[1] - image->nx * strides[0] * signs[0];
+                    offset += strides[1] * revsigns[1] - image->nx * strides[0] * revsigns[0];
                 }
             }
             volStart += volSize;
@@ -1443,7 +1533,7 @@ inline mat44 NiftiImage::xform (const bool preferQuaternion) const
 }
 
 template <typename TargetType>
-inline std::vector<TargetType> NiftiImage::Block::getData () const
+inline std::vector<TargetType> NiftiImage::Block::getData (const bool useSlope) const
 {
     if (image.isNull())
         return std::vector<TargetType>();
@@ -1453,81 +1543,138 @@ inline std::vector<TargetType> NiftiImage::Block::getData () const
         blockSize *= image->dim[i];
 
     std::vector<TargetType> data(blockSize);
-    internal::convertData<TargetType>(image->data, image->datatype, blockSize, data.begin(), blockSize*index);
+    internal::DataConverter<TargetType> *converter = NULL;
+    if (useSlope && image.isDataScaled())
+        converter = new internal::DataConverter<TargetType>(image->scl_slope, image->scl_inter);
     
-    if (image.isDataScaled())
-        std::transform(data.begin(), data.end(), data.begin(), internal::DataRescaler<TargetType>(image->scl_slope,image->scl_inter));
+    internal::convertData<TargetType>(image->data, image->datatype, blockSize, data.begin(), blockSize*index, converter);
     
+    delete converter;
     return data;
 }
 
 template <typename TargetType>
-inline std::vector<TargetType> NiftiImage::getData () const
+inline std::vector<TargetType> NiftiImage::getData (const bool useSlope) const
 {
     if (this->isNull())
         return std::vector<TargetType>();
     
     std::vector<TargetType> data(image->nvox);
-    internal::convertData<TargetType>(image->data, image->datatype, image->nvox, data.begin());
+    internal::DataConverter<TargetType> *converter = NULL;
+    if (useSlope && this->isDataScaled())
+        converter = new internal::DataConverter<TargetType>(image->scl_slope, image->scl_inter);
     
-    if (this->isDataScaled())
-        std::transform(data.begin(), data.end(), data.begin(), internal::DataRescaler<TargetType>(image->scl_slope,image->scl_inter));
+    internal::convertData<TargetType>(image->data, image->datatype, image->nvox, data.begin(), 0, converter);
     
+    delete converter;
     return data;
 }
 
-inline NiftiImage & NiftiImage::changeDatatype (const short datatype)
+inline NiftiImage & NiftiImage::changeDatatype (const short datatype, const bool useSlope)
 {
     if (this->isNull() || image->datatype == datatype)
         return *this;
+    
+    if (useSlope && this->isDataScaled())
+        throw std::runtime_error("Resetting the slope and intercept for an image with them already set is not supported");
     
     if (image->data != NULL)
     {
         int bytesPerPixel;
         nifti_datatype_sizes(datatype, &bytesPerPixel, NULL);
         void *data = calloc(image->nvox, bytesPerPixel);
-    
+        
         switch (datatype)
         {
             case DT_UINT8:
-            internal::convertData<uint8_t>(image->data, image->datatype, image->nvox, static_cast<uint8_t *>(data));
-            break;
+            {
+                internal::DataConverter<uint8_t> converter(useSlope ? internal::DataConverter<uint8_t>::IndexMode : internal::DataConverter<uint8_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<uint8_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_INT16:
-            internal::convertData<int16_t>(image->data, image->datatype, image->nvox, static_cast<int16_t *>(data));
-            break;
+            {
+                internal::DataConverter<int16_t> converter(useSlope ? internal::DataConverter<int16_t>::IndexMode : internal::DataConverter<int16_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<int16_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_INT32:
-            internal::convertData<int32_t>(image->data, image->datatype, image->nvox, static_cast<int32_t *>(data));
-            break;
+            {
+                internal::DataConverter<int32_t> converter(useSlope ? internal::DataConverter<int32_t>::IndexMode : internal::DataConverter<int32_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<int32_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_FLOAT32:
-            internal::convertData<float>(image->data, image->datatype, image->nvox, static_cast<float *>(data));
-            break;
+            {
+                internal::DataConverter<float> converter(useSlope ? internal::DataConverter<float>::IndexMode : internal::DataConverter<float>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<float *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_FLOAT64:
-            internal::convertData<double>(image->data, image->datatype, image->nvox, static_cast<double *>(data));
-            break;
+            {
+                internal::DataConverter<double> converter(useSlope ? internal::DataConverter<double>::IndexMode : internal::DataConverter<double>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<double *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_INT8:
-            internal::convertData<int8_t>(image->data, image->datatype, image->nvox, static_cast<int8_t *>(data));
-            break;
+            {
+                internal::DataConverter<int8_t> converter(useSlope ? internal::DataConverter<int8_t>::IndexMode : internal::DataConverter<int8_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<int8_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_UINT16:
-            internal::convertData<uint16_t>(image->data, image->datatype, image->nvox, static_cast<uint16_t *>(data));
-            break;
+            {
+                internal::DataConverter<uint16_t> converter(useSlope ? internal::DataConverter<uint16_t>::IndexMode : internal::DataConverter<uint16_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<uint16_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_UINT32:
-            internal::convertData<uint32_t>(image->data, image->datatype, image->nvox, static_cast<uint32_t *>(data));
-            break;
+            {
+                internal::DataConverter<uint32_t> converter(useSlope ? internal::DataConverter<uint32_t>::IndexMode : internal::DataConverter<uint32_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<uint32_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_INT64:
-            internal::convertData<int64_t>(image->data, image->datatype, image->nvox, static_cast<int64_t *>(data));
-            break;
+            {
+                internal::DataConverter<int64_t> converter(useSlope ? internal::DataConverter<int64_t>::IndexMode : internal::DataConverter<int64_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<int64_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             case DT_UINT64:
-            internal::convertData<uint64_t>(image->data, image->datatype, image->nvox, static_cast<uint64_t *>(data));
-            break;
+            {
+                internal::DataConverter<uint64_t> converter(useSlope ? internal::DataConverter<uint64_t>::IndexMode : internal::DataConverter<uint64_t>::CastMode);
+                internal::convertData(image->data, image->datatype, image->nvox, static_cast<uint64_t *>(data), 0, &converter);
+                image->scl_slope = static_cast<float>(converter.getSlope());
+                image->scl_inter = static_cast<float>(converter.getIntercept());
+                break;
+            }
         
             default:
             throw std::runtime_error("Unsupported data type (" + std::string(nifti_datatype_string(datatype)) + ")");
@@ -1543,9 +1690,9 @@ inline NiftiImage & NiftiImage::changeDatatype (const short datatype)
     return *this;
 }
 
-inline NiftiImage & NiftiImage::changeDatatype (const std::string &datatype)
+inline NiftiImage & NiftiImage::changeDatatype (const std::string &datatype, const bool useSlope)
 {
-    return changeDatatype(internal::stringToDatatype(datatype));
+    return changeDatatype(internal::stringToDatatype(datatype), useSlope);
 }
 
 template <typename SourceType>
@@ -1577,13 +1724,15 @@ inline NiftiImage & NiftiImage::replaceData (const std::vector<SourceType> &data
 
 inline void NiftiImage::toFile (const std::string fileName, const short datatype) const
 {
-    // Copy the source image only if the datatype will be changed
-    NiftiImage imageToWrite(image, datatype != DT_NONE);
+    const bool changingDatatype = (datatype != DT_NONE && !this->isNull() && datatype != image->datatype);
     
-    if (datatype == DT_NONE)
-        imageToWrite.setPersistence(true);
+    // Copy the source image only if the datatype will be changed
+    NiftiImage imageToWrite(image, changingDatatype);
+    
+    if (changingDatatype)
+        imageToWrite.changeDatatype(datatype, true);
     else
-        imageToWrite.changeDatatype(datatype);
+        imageToWrite.setPersistence(true);
     
     const int status = nifti_set_filenames(imageToWrite, fileName.c_str(), false, true);
     if (status != 0)
@@ -1607,7 +1756,7 @@ inline Rcpp::RObject NiftiImage::toArray () const
     else if (this->isDataScaled())
     {
         array = internal::imageDataToArray<REALSXP>(image);
-        std::transform(REAL(array), REAL(array)+Rf_length(array), REAL(array), internal::DataRescaler<double>(image->scl_slope,image->scl_inter));
+        std::transform(REAL(array), REAL(array)+Rf_length(array), REAL(array), internal::DataConverter<double>(image->scl_slope,image->scl_inter));
     }
     else
     {
