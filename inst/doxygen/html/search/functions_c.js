@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['updatepixdim',['updatePixdim',['../class_r_nifti_1_1_nifti_image.html#a954ca90ccb1349198d5442e013314558',1,'RNifti::NiftiImage']]]
+  ['pixdim',['pixdim',['../class_r_nifti_1_1_nifti_image.html#a40f286f508c80c8df32d8296db25184c',1,'RNifti::NiftiImage']]]
 ];

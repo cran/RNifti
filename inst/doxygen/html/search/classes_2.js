@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['vec3',['vec3',['../struct_r_nifti_1_1internal_1_1vec3.html',1,'RNifti::internal']]]
+  ['element',['Element',['../struct_r_nifti_1_1_nifti_image_data_1_1_element.html',1,'RNifti::NiftiImageData']]]
 ];

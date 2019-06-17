@@ -1,6 +1,7 @@
 var searchData=
 [
-  ['xform',['xform',['../class_r_nifti_1_1_nifti_image.html#adef4fc3497a306e281d5fd8df6234957',1,'RNifti::NiftiImage']]],
-  ['xformtorotation',['xformToRotation',['../class_r_nifti_1_1_nifti_image.html#ae02fad418f34ee2e24fa7ed1fb6a9741',1,'RNifti::NiftiImage']]],
-  ['xformtostring',['xformToString',['../class_r_nifti_1_1_nifti_image.html#a93f2f97cb956d099ad7f1c6dd893dbf2',1,'RNifti::NiftiImage']]]
+  ['setpersistence',['setPersistence',['../class_r_nifti_1_1_nifti_image.html#ac2659bd59e1d35416f97b88f6618bedc',1,'RNifti::NiftiImage']]],
+  ['setpixunits',['setPixunits',['../class_r_nifti_1_1_nifti_image.html#a21c9f48de4da893dacc0f37eed32828e',1,'RNifti::NiftiImage']]],
+  ['size',['size',['../class_r_nifti_1_1_nifti_image_data.html#abea0aea457bd6e8269098ccfab03c147',1,'RNifti::NiftiImageData']]],
+  ['slice',['slice',['../class_r_nifti_1_1_nifti_image.html#ad8c9cb9aa058c5bd950822851ab03a37',1,'RNifti::NiftiImage::slice(const int i) const'],['../class_r_nifti_1_1_nifti_image.html#a9ca2e864f59b482e52c8553d029662ac',1,'RNifti::NiftiImage::slice(const int i)']]]
 ];

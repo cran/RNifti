@@ -1,7 +1,18 @@
 var searchData=
 [
-  ['rnifti_3a_20fast_20r_20and_20c_2b_2b_20access_20to_20nifti_20images',['RNifti: Fast R and C++ Access to NIfTI Images',['../index.html',1,'']]],
-  ['reorient',['reorient',['../class_r_nifti_1_1_nifti_image.html#a57379411a7e080a2e0d3134d6870eb04',1,'RNifti::NiftiImage::reorient(const int i, const int j, const int k)'],['../class_r_nifti_1_1_nifti_image.html#a0751b04b5593041c655a8a7748507ea2',1,'RNifti::NiftiImage::reorient(const std::string &amp;orientation)']]],
-  ['replacedata',['replaceData',['../class_r_nifti_1_1_nifti_image.html#a9b23c5655fec43a175d5c224ac902865',1,'RNifti::NiftiImage']]],
-  ['rescale',['rescale',['../class_r_nifti_1_1_nifti_image.html#a5fdefbcc8beb23975ab470e3307c9da3',1,'RNifti::NiftiImage']]]
+  ['image',['image',['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a44ac6e7ad9b070041bad4a63724d76b3',1,'RNifti::NiftiImage::Block::image()'],['../class_r_nifti_1_1_nifti_image.html#a82c4e0968f416972783a3cad00b4a1dc',1,'RNifti::NiftiImage::image()']]],
+  ['index',['index',['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a2d06613749b13b1146cf6684dd4525a9',1,'RNifti::NiftiImage::Block']]],
+  ['init',['init',['../class_r_nifti_1_1_nifti_image_data.html#ad439731537b2e0e2ea838f12e11cacba',1,'RNifti::NiftiImageData']]],
+  ['intercept',['intercept',['../class_r_nifti_1_1_nifti_image_data.html#a7a5af7b5c106f31623783560e00aca68',1,'RNifti::NiftiImageData']]],
+  ['iscomplex',['isComplex',['../class_r_nifti_1_1_nifti_image_data.html#afb004caf42953e562f681c4d79001e2f',1,'RNifti::NiftiImageData']]],
+  ['isdatascaled',['isDataScaled',['../class_r_nifti_1_1_nifti_image.html#a1e4a5e5391215ab54bfc0c823652ad78',1,'RNifti::NiftiImage']]],
+  ['isempty',['isEmpty',['../class_r_nifti_1_1_nifti_image_data.html#ae205097bf159ffde5d8b28219ce042da',1,'RNifti::NiftiImageData']]],
+  ['isfloatingpoint',['isFloatingPoint',['../class_r_nifti_1_1_nifti_image_data.html#a81ec89f42c5c2a7d5343fc36a0cb8a33',1,'RNifti::NiftiImageData']]],
+  ['isinteger',['isInteger',['../class_r_nifti_1_1_nifti_image_data.html#ab4585895eb4875be7112ecc45e0ae7cd',1,'RNifti::NiftiImageData']]],
+  ['isnull',['isNull',['../class_r_nifti_1_1_nifti_image.html#a59de4f1dc18aebce27f2abcbe2fe3a97',1,'RNifti::NiftiImage']]],
+  ['ispersistent',['isPersistent',['../class_r_nifti_1_1_nifti_image.html#a94eda3b3041314354f9b314d95a116d1',1,'RNifti::NiftiImage']]],
+  ['isrgb',['isRgb',['../class_r_nifti_1_1_nifti_image_data.html#a0f935b2f58c582bff944bfc1f8d50ddf',1,'RNifti::NiftiImageData']]],
+  ['isscaled',['isScaled',['../class_r_nifti_1_1_nifti_image_data.html#a1fc8325e2db037d9374e254da0a0b8b4',1,'RNifti::NiftiImageData']]],
+  ['isshared',['isShared',['../class_r_nifti_1_1_nifti_image.html#a75890fe868c735e7011f62c39a1e0eb2',1,'RNifti::NiftiImage']]],
+  ['iterator',['Iterator',['../class_r_nifti_1_1_nifti_image_data_1_1_iterator.html',1,'RNifti::NiftiImageData::Iterator'],['../class_r_nifti_1_1_nifti_image_data_1_1_iterator.html#a5f127a5b057b7f68513cae3a9bca3378',1,'RNifti::NiftiImageData::Iterator::Iterator(const NiftiImageData &amp;parent, void *ptr=NULL, const size_t step=0)'],['../class_r_nifti_1_1_nifti_image_data_1_1_iterator.html#a8694ec0dd4b36b2705d36ece804e74ae',1,'RNifti::NiftiImageData::Iterator::Iterator(const Iterator &amp;other)']]]
 ];

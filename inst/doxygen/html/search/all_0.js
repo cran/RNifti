@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['block',['Block',['../struct_r_nifti_1_1_nifti_image_1_1_block.html',1,'RNifti::NiftiImage::Block'],['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a9cfa242af69c4cf2d3e788170be52e8a',1,'RNifti::NiftiImage::Block::Block()'],['../class_r_nifti_1_1_nifti_image.html#a863694f20c787839093e13f41af70255',1,'RNifti::NiftiImage::block(const int i) const'],['../class_r_nifti_1_1_nifti_image.html#a96a7386170f4146a834cbefe280b35be',1,'RNifti::NiftiImage::block(const int i)']]]
+  ['_5fdatatype',['_datatype',['../class_r_nifti_1_1_nifti_image_data.html#a3a37b63398fdf338c91731007b19933a',1,'RNifti::NiftiImageData']]],
+  ['_5flength',['_length',['../class_r_nifti_1_1_nifti_image_data.html#aa8496487bdd61d6022c3f5bbe72367f5',1,'RNifti::NiftiImageData']]]
 ];

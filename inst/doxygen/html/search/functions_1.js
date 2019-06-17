@@ -1,5 +1,7 @@
 var searchData=
 [
-  ['changedatatype',['changeDatatype',['../class_r_nifti_1_1_nifti_image.html#a284ee3a4560ff5371aa915a9c98c8146',1,'RNifti::NiftiImage::changeDatatype(const short datatype, const bool useSlope=false)'],['../class_r_nifti_1_1_nifti_image.html#aa1da7aa44bbe4d60974be6ebb94a95e2',1,'RNifti::NiftiImage::changeDatatype(const std::string &amp;datatype, const bool useSlope=false)']]],
-  ['copy',['copy',['../class_r_nifti_1_1_nifti_image.html#aeb1d5e30e3d28a07b69844cec2514144',1,'RNifti::NiftiImage::copy(const nifti_image *source)'],['../class_r_nifti_1_1_nifti_image.html#aab05a75827764608bbcb67251a5e8eba',1,'RNifti::NiftiImage::copy(const NiftiImage &amp;source)'],['../class_r_nifti_1_1_nifti_image.html#ad0fb9f9754e9c0e3692b9fbf5821705a',1,'RNifti::NiftiImage::copy(const Block &amp;source)']]]
+  ['begin',['begin',['../class_r_nifti_1_1_nifti_image_data.html#a58e73443eadd3f933653844d74bed783',1,'RNifti::NiftiImageData::begin() const'],['../class_r_nifti_1_1_nifti_image_data.html#acd4e31b5a4daf38193831967ae93c20b',1,'RNifti::NiftiImageData::begin()']]],
+  ['blob',['blob',['../class_r_nifti_1_1_nifti_image_data.html#a09885563011e9a614fa35aeaa29bf72d',1,'RNifti::NiftiImageData']]],
+  ['block',['block',['../class_r_nifti_1_1_nifti_image.html#a863694f20c787839093e13f41af70255',1,'RNifti::NiftiImage::block(const int i) const'],['../class_r_nifti_1_1_nifti_image.html#a96a7386170f4146a834cbefe280b35be',1,'RNifti::NiftiImage::block(const int i)'],['../struct_r_nifti_1_1_nifti_image_1_1_block.html#a9cfa242af69c4cf2d3e788170be52e8a',1,'RNifti::NiftiImage::Block::Block()']]],
+  ['bytesperpixel',['bytesPerPixel',['../class_r_nifti_1_1_nifti_image_data.html#a1c00c50a2cd16c2eab8435fbf05c6b94',1,'RNifti::NiftiImageData']]]
 ];
