@@ -1,8 +1,8 @@
-1729446baa38402bb213b6cbf2ea846e *DESCRIPTION
+7f2c2c370d8036be3433773e051ed65f *DESCRIPTION
 71e1864c43d94f41f7f63c18e9ae8cda *NAMESPACE
-a29dfe42c8afb074183e26b9a5b569fa *NEWS
+09929df008da7421ccb1d89baa7d673c *NEWS
 00bc4d732df7f933b8a094d9bca96121 *R/image.R
-6f45f332ebb3b8d7301855dbe56021e4 *R/nifti.R
+5c142e1b93b7124caa5b1b8c1b995ac2 *R/nifti.R
 e7c27c62aa974a6fbd9346047edbe594 *R/xform.R
 33e5b97691485f83c60e3d5c3f3a2cdc *R/zzz.R
 02333c6755ae5cc8e1e4905e6f11a32e *README.md
@@ -198,7 +198,7 @@ e8547f4bc7609814adfbab6fe9c1c288 *inst/extdata/example_4d.nii.gz
 816d01b64d9bc794466a072cc5ead530 *inst/include/RNifti.h
 a6090d4b3725e70fdb112698709ab5b3 *inst/include/RNiftiAPI.h
 35bdd693300c11e88bb00f59236dd6b1 *inst/include/lib/NiftiImage.h
-51f8047d0aa9922af6825dd103b4979b *inst/include/lib/NiftiImage_impl.h
+edea42a31845b27e17aa8f2c735e5162 *inst/include/lib/NiftiImage_impl.h
 d4ea2b20c60ba81754992897151fb731 *inst/include/lib/NiftiImage_print.h
 a34af6ec4b25ecc1a68459bbb5dc76c9 *inst/include/niftilib/nifti1.h
 89d96efa2e6e8587e5a3be6b30b4d9dd *inst/include/niftilib/nifti1_io.h
@@ -213,7 +213,7 @@ a79629a9e25d6a36607bd5931381b507 *man/niftiHeader.Rd
 20c181da31a24521475e83eff3927f90 *man/pixdim.Rd
 78be72030ed44baf6effc222757aa110 *man/readNifti.Rd
 bcc1ccf809fa0dc89846cf93b945aca2 *man/retrieveNifti.Rd
-6dd432db7d2d02e94d4367ca061da1da *man/updateNifti.Rd
+0222842fd160b34b41ddb09a6b8627f6 *man/updateNifti.Rd
 7f366aa4296dae452fb39f3131e3cf38 *man/voxelToWorld.Rd
 7abc3deb7077c2b30d9ff1716b3310e5 *man/writeNifti.Rd
 efa8f9381c03660c3a86224285f5af76 *man/xform.Rd
@@ -246,6 +246,6 @@ fff257bc1656eb60fc585a7dc35f963d *src/zlib/zutil.c
 de91a463004fd5b944c3d37eab0c1794 *src/zlib/zutil.h
 2edcf5344601d3f03e1688de10acbefd *src/znzlib/znzlib.c
 d4a2abbb6217055b8900c8d86ac6aa53 *tests/testthat.R
-9cf843e32001eba37da0ccd08966f123 *tests/testthat/test-05-nifti.R
+51c76842b8ad0306cb034435f7072527 *tests/testthat/test-05-nifti.R
 699f654cbb6052138b7f5980a55a2401 *tests/testthat/test-10-xform.R
 4606a69410277f4f5b4c2a9228eb941c *tests/testthat/test-15-foreign.R
