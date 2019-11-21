@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['_7eniftiimage',['~NiftiImage',['../class_r_nifti_1_1_nifti_image.html#a5ec15c8ad46eedb6498d007202389e0c',1,'RNifti::NiftiImage']]],
-  ['_7eniftiimagedata',['~NiftiImageData',['../class_r_nifti_1_1_nifti_image_data.html#ab5b71eeb251a8eb35dc4b9378164d9cf',1,'RNifti::NiftiImageData']]]
+  ['xform',['xform',['../a00046.html#adef4fc3497a306e281d5fd8df6234957',1,'RNifti::NiftiImage']]],
+  ['xformtorotation',['xformToRotation',['../a00046.html#ae02fad418f34ee2e24fa7ed1fb6a9741',1,'RNifti::NiftiImage']]],
+  ['xformtostring',['xformToString',['../a00046.html#a93f2f97cb956d099ad7f1c6dd893dbf2',1,'RNifti::NiftiImage']]]
 ];
