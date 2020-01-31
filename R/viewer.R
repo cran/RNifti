@@ -1,17 +1,48 @@
+.State <- new.env()
+
+.is3DVector <- function (image)
+{
+    return (image$intent_code == 1007L && ndim(image) == 5L && dim(image)[5] == 3L)
+}
+
 .plotLayer <- function (layer, loc, asp = NULL, add = FALSE)
 {
+    is3DVector <- .is3DVector(layer$image)
+    
     # Extract the data for the appropriate plane
     axis <- which(!is.na(loc))
     indices <- alist(i=, j=, k=, t=1, u=1, v=1, w=1)
-    indices[axis] <- loc[axis]
+    if (is3DVector)
+        indices[[5]] <- 1:3
+    indices[[axis]] <- loc[axis]
     data <- do.call("[", c(layer["image"], indices[seq_len(ndim(layer$image))], list(drop=FALSE)))
-    dims <- dim(data)[-c(axis,4:7)]
+    if (is3DVector)
+        dims <- dim(data)[-c(axis,4,6,7)]
+    else
+        dims <- dim(data)[-c(axis,4:7)]
     dim(data) <- dims
     
     if (is.null(asp))
         asp <- dims[2] / dims[1]
     
-    if (inherits(layer$image, "rgbArray"))
+    if (is3DVector)
+    {
+        # Show 3D vector data as coloured line segments
+        if (!add)
+        {
+            oldPars <- par(mai=c(0,0,0,0))
+            on.exit(par(oldPars))
+            image(array(NA,dim=dims[1:2]), axes=FALSE, asp=asp, zlim=c(0,1))
+        }
+        valid <- which(apply(data, 1:2, function(x) !any(is.na(x)) && !all(x==0)), arr.ind=TRUE)
+        colours <- as.character(rgbArray(abs(data[cbind(valid,1)]), abs(data[cbind(valid,2)]), abs(data[cbind(valid,3)]), max=layer$window[2]))
+        data <- data[,,-axis]
+        segments((valid[,1]-1)/(dims[1]-1) - data[cbind(valid,1)]/(2*dims[1]*layer$window[2]),
+                 (valid[,2]-1)/(dims[2]-1) - data[cbind(valid,2)]/(2*dims[2]*layer$window[2]),
+                 (valid[,1]-1)/(dims[1]-1) + data[cbind(valid,1)]/(2*dims[1]*layer$window[2]),
+                 (valid[,2]-1)/(dims[2]-1) + data[cbind(valid,2)]/(2*dims[2]*layer$window[2]), col=colours, lwd=2)
+    }
+    else if (inherits(layer$image, "rgbArray"))
     {
         # RGB display is achieved by converting the data to an array of indices into a custom palette
         data <- as.character(structure(data, class="rgbArray"))
@@ -57,13 +88,14 @@
 #' @param infoPanel A function of three arguments, which must produce a plot
 #'   for the information panel of the view. \code{\link{defaultInfoPanel}} is
 #'   the default, which shows the labels and values of each image at the
-#'   current point.
+#'   current point. A \code{NULL} value will suppress the panel.
 #' @param image The image being shown in this layer.
 #' @param scale A character vector of colour values for the scale, or a single
 #'   string naming a predefined scale: \code{"grey"} or \code{"gray"} for
 #'   greyscale, \code{"heat"} for a heatmap, \code{"rainbow"} for a rainbow
 #'   scale, or any of the scales defined in the \code{shades} package (see
-#'   \code{?shades::gradient}, if that package is installed). Ignored for RGB
+#'   \code{?shades::gradient}, if that package is installed). A fixed colour
+#'   can be used by wrapping a string in a call to \code{I}. Ignored for RGB
 #'   images.
 #' @param min,max The window minimum and maximum for the layer, i.e., the black
 #'   and white points. These are ignored for RGB images. Otherwise, if
@@ -71,7 +103,13 @@
 #'   \code{cal_max} NIfTI header fields. If either is \code{NA}, the image has
 #'   no window stored in its header, or the two values are equal, then the 1st
 #'   and 99th percentiles of the data are used, with values close to zero
-#'   rounded to that extreme.
+#'   rounded to that extreme. If these values are still equal, the untrimmed
+#'   range of the image data is used.
+#' @param mask A optional mask array, which may be of lower dimensionality than
+#'   the main image. If specified, this is converted to logical mode and pixels
+#'   that evaluate \code{FALSE} will be set to \code{NA} for that layer,
+#'   meaning they will not be plotted. This operation is performed last, and so
+#'   will not affect auto-windowing.
 #' @return \code{lyr} returns a list of class \code{"viewLayer"}, to be used
 #'   in a view. \code{view} is called for its side-effect of showing a view.
 #' 
@@ -84,6 +122,8 @@
 #' @examples
 #' im <- readNifti(system.file("extdata", "example.nii.gz", package="RNifti"))
 #' view(im, interactive=FALSE)
+#' view(lyr(im, max=800), interactive=FALSE)
+#' view(lyr(im, mask=im<800), interactive=FALSE)
 #' 
 #' @author Jon Clayden <code@@clayden.org>
 #' @seealso \code{\link{defaultInfoPanel}}, \code{\link{orientation}},
@@ -143,9 +183,11 @@ view <- function (..., point = NULL, radiological = getOption("radiologicalView"
     # Set some graphics parameters, and make sure they get reset
     oldPars <- par(bg="black", col="white", fg="white", col.axis="white", col.lab="white", col.main="white")
     oldOptions <- options(locatorBell=FALSE, preferRaster=TRUE)
+    .State$interactive <- interactive
     on.exit({
         par(oldPars)
         options(oldOptions)
+        .State$interactive <- FALSE
     })
     
     repeat
@@ -164,22 +206,28 @@ view <- function (..., point = NULL, radiological = getOption("radiologicalView"
         if (ndim == 2)
         {
             starts <- ends <- rep(0:1, 2)
-            layout(matrix(c(2,1), nrow=1))
+            if (is.null(infoPanel))
+                layout(matrix(1))
+            else
+                layout(matrix(c(2,1), nrow=1))
         }
         else
-            layout(matrix(c(2,3,4,1), nrow=2, byrow=TRUE))
+            layout(matrix(c(2,3,4,1) - ifelse(is.null(infoPanel),1,0), nrow=2, byrow=TRUE))
         
-        # For each layer, extract the data values corresponding to the current point, and pass them to the info panel function
-        data <- lapply(layers, function(layer) {
-            indices <- alist(i=, j=, k=, t=, u=, v=, w=)
-            indices[seq_along(point)] <- reorientedPoint
-            result <- do.call("[", c(list(layer$image), indices[seq_len(ndim(layer$image))]))
-            if (inherits(layer$image, "rgbArray"))
-                return (as.character(structure(result, dim=c(1,length(result)), class="rgbArray")))
-            else
-                return (result)
-        })
-        infoPanel(point, data, sapply(layers,"[[","label"))
+        if (!is.null(infoPanel))
+        {
+            # For each layer, extract the data values corresponding to the current point, and pass them to the info panel function
+            data <- lapply(layers, function(layer) {
+                indices <- alist(i=, j=, k=, t=, u=, v=, w=)
+                indices[seq_along(point)] <- reorientedPoint
+                result <- do.call("[", c(list(layer$image), indices[seq_len(ndim(layer$image))]))
+                if (inherits(layer$image, "rgbArray"))
+                    return (as.character(structure(result, dim=c(1,length(result)), class="rgbArray")))
+                else
+                    return (result)
+            })
+            infoPanel(point, data, sapply(layers,"[[","label"))
+        }
         
         for (i in 1:3)
         {
@@ -248,7 +296,7 @@ view <- function (..., point = NULL, radiological = getOption("radiologicalView"
 
 #' @rdname view
 #' @export
-lyr <- function (image, scale = "grey", min = NULL, max = NULL)
+lyr <- function (image, scale = "grey", min = NULL, max = NULL, mask = NULL)
 {
     label <- deparse(substitute(image))
     image <- asNifti(image, internal=FALSE)
@@ -277,18 +325,46 @@ lyr <- function (image, scale = "grey", min = NULL, max = NULL)
                 window <- range(image, na.rm=TRUE)
             message("Setting window to (", signif(window[1],4), ", ", signif(window[2],4), ")")
         }
+        
+        if (!.is3DVector(image))
+        {
+            image[image < window[1]] <- window[1]
+            image[image > window[2]] <- window[2]
+        }
+    }
     
-        image[image < window[1]] <- window[1]
-        image[image > window[2]] <- window[2]
+    if (!is.null(mask) && ndim(mask) > 1)
+    {
+        repDims <- setdiff(seq_len(ndim(image)), seq_len(ndim(mask)))
+        if (length(repDims) > 0)
+        {
+            data <- apply(image, repDims, "[<-", !as.logical(mask), NA)
+            dim(data) <- dim(image)
+            image <- updateNifti(data, image)
+        }
+        else
+            image[!as.logical(mask)] <- NA
     }
     
     return (structure(list(image=image, label=label, colours=colours, window=window), class="viewLayer"))
 }
 
-#' The built-in viewer's default info panel
+.quitInstructions <- function ()
+{
+    if (!isTRUE(.State$interactive))
+        return ("")
+    else
+    {
+        escapeToQuit <- isTRUE(names(dev.cur()) %in% c("quartz","RStudioGD"))
+        return (paste(ifelse(escapeToQuit,"Press Esc","Right click"), "to leave interactive mode", sep=" "))
+    }
+}
+
+#' Info panels for the built-in viewer
 #' 
 #' A default info panel for \code{\link{view}}, which shows the labels and
-#' values of each image at the current point.
+#' values of each image at the current point, and a panel suitable for
+#' plotting four-dimensional time series images.
 #' 
 #' @param point A numeric vector giving the current point location.
 #' @param data A list of data values for each image at the current point.
@@ -301,14 +377,11 @@ lyr <- function (image, scale = "grey", min = NULL, max = NULL)
 #' @export
 defaultInfoPanel <- function (point, data, labels)
 {
-    escapeToQuit <- isTRUE(names(dev.cur()) %in% c("quartz","RStudioGD"))
-    quitInstructions <- paste(ifelse(escapeToQuit,"Press Esc","Right click"), "to leave interactive mode", sep=" ")
-    
     plot(NA, xlim=c(0,1), ylim=c(0,1), xlab="", ylab="", xaxt="n", yaxt="n", bty="n", main=paste("Location: [", paste(point,collapse=","), "]", sep=""))
     nImages <- min(4, length(labels))
     yLocs <- 0.95 - cumsum(c(0,rep(c(0.1,0.13),nImages)))
     yLocs[length(yLocs)] <- -0.05
-    text <- quitInstructions
+    text <- .quitInstructions()
     for (i in seq_len(nImages))
     {
         text <- c(text, {
@@ -321,4 +394,20 @@ defaultInfoPanel <- function (point, data, labels)
         }, labels[i])
     }
     text(0.5, yLocs, rev(text), col=c(rep(c("white","red"),nImages),"grey70"), cex=pmin(1,1/strwidth(rev(text))), xpd=TRUE)
+}
+
+#' @rdname defaultInfoPanel
+#' @export
+timeSeriesPanel <- function (point, data, labels)
+{
+    lengths <- sapply(data, length)
+    suppressWarnings(range <- c(min(sapply(data,min,na.rm=TRUE)), max(sapply(data,max,na.rm=TRUE))))
+    range[is.infinite(range)] <- 0
+    plot(NA, xlim=c(1,max(lengths)), ylim=range, xlab=.quitInstructions(), ylab="intensity", col.lab="grey70", bty="n", main=paste("Location: [", paste(point,collapse=","), "]", sep=""))
+    
+    for (i in seq_along(data))
+    {
+        if (lengths[i] > 1)
+            lines(1:lengths[i], data[[i]], col="red", lwd=2)
+    }
 }
