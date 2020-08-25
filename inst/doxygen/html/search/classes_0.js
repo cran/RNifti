@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['block',['Block',['../a00050.html',1,'RNifti::NiftiImage']]]
+  ['block_95',['Block',['../a00058.html',1,'RNifti::NiftiImage']]]
 ];

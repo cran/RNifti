@@ -6,7 +6,8 @@
 
 #include <Rcpp.h>
 
-// Defined since R 3.1.0, according to Tomas Kalibera, but there's no reason to break compatibility with 3.0.x
+// Defined since R 3.1.0, according to Tomas Kalibera, but there's no reason to break
+// compatibility with 3.0.x
 #ifndef MAYBE_SHARED
 #define MAYBE_SHARED(x) (NAMED(x) > 1)
 #endif
@@ -29,9 +30,6 @@
 #include <limits>
 
 #endif
-
-
-#include "niftilib/nifti1_io.h"
 
 /**
  * @mainpage RNifti: Fast R and C++ Access to NIfTI Images
@@ -620,6 +618,212 @@ inline bool NiftiImageData::ConcreteTypeHandler<int>::hasNaN () const { return t
 
 
 /**
+ * A simple object-oriented wrapper around a fixed-length array.
+ * @author Jon Clayden (<code@clayden.org>)
+**/
+template <typename ElementType, int Length>
+class Vector
+{
+protected:
+    ElementType elements[Length];
+    
+public:
+    /**
+     * Initialise with a fixed element value, defaulting to zero
+    **/
+    Vector (const ElementType value = 0.0)
+    {
+        std::fill(elements, elements + Length, value);
+    }
+    
+    /**
+     * Initialise from a C-style array of the appropriate type and length
+    **/
+    Vector (const ElementType * source)
+    {
+        std::copy(source, source + Length, this->elements);
+    }
+    
+    /**
+     * Unary negation operator, which reverses the signs of all elements
+    **/
+    Vector<ElementType,Length> operator- () const
+    {
+        Vector<ElementType,Length> result;
+        for (int i=0; i<Length; i++)
+            result.elements[i] = -elements[i];
+        return result;
+    }
+    
+    const ElementType & operator[] (const size_t i) const { return elements[i]; }
+    
+    ElementType & operator[] (const size_t i) { return elements[i]; }
+};
+
+
+/**
+ * Class representing a numeric square matrix of a fixed order. Provides object-based encapsulation
+ * and version agnosticism for certain NIfTI-relevant matrix operations, as well as other
+ * conveniences such as iterators and conversion to/from R matrices.
+ * @author Jon Clayden (<code@clayden.org>)
+**/
+template <class NiftiType, typename ElementType, int Order>
+class SquareMatrix
+{
+protected:
+    ElementType elements[Order*Order];          /**< The underlying raw data elements, stored row-major for consistency with niftilib */
+    
+    /**
+     * Obtain a pointer to a NIfTI-style \c mat44 or \c dmat44 encapsulating the same data as this
+     * object.
+    */
+    NiftiType * niftiPointer () const { return (NiftiType *) elements; }
+    
+    /**
+     * Copy the data elements into a new NIfTI-style \c mat44 or \c dmat44.
+    */
+    NiftiType niftiCopy () const
+    {
+        NiftiType value;
+        std::copy(elements, elements + Order*Order, *value.m);
+        return value;
+    }
+    
+public:
+    typedef NiftiType NativeType;                                       /**< The niftilib structure type corresponding to this matrix */
+    typedef SquareMatrix<NiftiType,ElementType,Order> MatrixType;       /**< Type alias for the current specialisation */
+    typedef Vector<ElementType,Order> VectorType;                       /**< Type of vectors for which this matrix is a linear operator */
+    
+    /**
+     * Initialise with a fixed element value, defaulting to zero
+    **/
+    SquareMatrix (const ElementType value = 0.0)
+    {
+        std::fill(elements, elements + Order*Order, value);
+    }
+    
+    /**
+     * Initialise from a C-style array of the appropriate type and length
+    **/
+    SquareMatrix (const ElementType * source)
+    {
+        std::copy(source, source + Order*Order, this->elements);
+    }
+    
+    /**
+     * Initialise from the appropriate niftilib type
+    **/
+    SquareMatrix (const NiftiType &source)
+    {
+        std::copy(*source.m, *source.m + Order*Order, this->elements);
+    }
+    
+#ifdef USING_R
+    /**
+     * Initialise from an R object representing a numeric matrix
+    **/
+    SquareMatrix (SEXP source)
+    {
+        Rcpp::NumericMatrix matrix(source);
+        if (matrix.cols() != Order && matrix.rows() != Order)
+            throw std::runtime_error("Matrix does not have the expected dimensions");
+        for (int i=0; i<Order; i++)
+        {
+            for (int j=0; j<Order; j++)
+                elements[j + i*Order] = matrix(i,j);
+        }
+    }
+#endif
+    
+    /**
+     * Implicit conversion to the corresponding niftilib type, which allows a \c SquareMatrix
+     * object to be used directly in library functions
+    **/
+    operator const NiftiType () const { return niftiCopy(); }
+    
+    /**
+     * Implicit conversion to the corresponding niftilib type, which allows a \c SquareMatrix
+     * object to be used directly in library functions
+    **/
+    operator NiftiType () { return niftiCopy(); }
+    
+    /**
+     * Return a pointer/iterator to the beginning of the data. Elements are accessed in row-major
+     * order
+    **/
+    const ElementType * begin () const { return elements; }
+    
+    /**
+     * Return a pointer/iterator to the beginning of the data. Elements are accessed in row-major
+     * order
+    **/
+    ElementType * begin () { return elements; }
+    
+    /**
+     * Return a pointer/iterator to the end of the data
+    **/
+    const ElementType * end () const { return elements + Order*Order; }
+    
+    /**
+     * Return a pointer/iterator to the end of the data
+    **/
+    ElementType * end () { return elements + Order*Order; }
+    
+    /**
+     * Construct an identity matrix of the appropriate size
+    **/
+    static MatrixType eye ()
+    {
+        MatrixType matrix;
+        for (int i=0; i<Order; i++)
+            matrix.elements[i + i*Order] = 1.0;
+        return matrix;
+    }
+    
+    MatrixType inverse () const;                                /**< Matrix inverse */
+    MatrixType polar () const;                                  /**< Polar decomposition, as implemented in niftilib (\c Order 3 only) */
+    ElementType colnorm () const;                               /**< Maximum column norm, as implemented in niftilib (\c Order 3 only) */
+    ElementType rownorm () const;                               /**< Maximum row norm, as implemented in niftilib (\c Order 3 only) */
+    ElementType determ () const;                                /**< Matrix determinant, as implemented in niftilib (\c Order 3 only) */
+    MatrixType multiply (const MatrixType &other) const;        /**< Matrix-matrix multiplication */
+    VectorType multiply (const VectorType &vec) const;          /**< Matrix-vector multiplication */
+    
+    MatrixType operator* (const MatrixType &other) const { return multiply(other); }    /**< Matrix-matrix multiplication (infix shorthand) */
+    VectorType operator* (const VectorType &vec) const { return multiply(vec); }        /**< Matrix-vector multiplication (infix shorthand) */
+    
+    /**
+     * Indexing operator. The first index is for column, and the second is for row
+    **/
+    const ElementType & operator() (const int i, const int j) const { return elements[j + i*Order]; }
+    
+    /**
+     * Indexing operator. The first index is for column, and the second is for row
+    **/
+    ElementType & operator() (const int i, const int j) { return elements[j + i*Order]; }
+    
+#ifdef USING_R
+    /**
+     * \c SEXP cast operator, which converts to R's numeric matrix type
+    **/
+    operator SEXP () const
+    {
+        Rcpp::NumericMatrix result(Order, Order);
+        for (int i=0; i<Order; i++)
+        {
+            for (int j=0; j<Order; j++)
+                result(i,j) = elements[j + i*Order];
+        }
+        return result;
+    }
+#endif
+};
+
+
+// Include matrix implementations
+#include "RNifti/NiftiImage_matrix.h"
+
+
+/**
  * Thin wrapper around a C-style \c nifti_image struct that allows C++-style destruction. Reference
  * counting is used to allow multiple \c NiftiImage objects to wrap the same \c nifti_image
  * pointer, akin to a \c std::shared_ptr (but without requiring C++11).
@@ -628,6 +832,16 @@ inline bool NiftiImageData::ConcreteTypeHandler<int>::hasNaN () const { return t
 class NiftiImage
 {
 public:
+#if RNIFTI_NIFTILIB_VERSION == 1
+    typedef int dim_t;                  /**< Type used for dimension elements */
+    typedef float pixdim_t;             /**< Type used for pixel dimension elements */
+    typedef float scale_t;              /**< Type used for scale elements */
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    typedef int64_t dim_t;              /**< Type used for dimension elements */
+    typedef double pixdim_t;            /**< Type used for pixel dimension elements */
+    typedef double scale_t;             /**< Type used for scale elements */
+#endif
+    
     /**
      * Inner class referring to a subset of an image. Currently must refer to the last
      * dimension in the image, i.e., a volume in a 4D parent image, or a slice in a 3D image
@@ -636,7 +850,7 @@ public:
     {
         const NiftiImage &image;        /**< The parent image */
         const int dimension;            /**< The dimension along which the block applies (which should be the last) */
-        const int index;                /**< The location along \c dimension */
+        const dim_t index;              /**< The location along \c dimension */
         
         /**
          * Standard constructor for this class
@@ -645,7 +859,7 @@ public:
          * @param index The location along \c dimension
          * @exception runtime_error If \c dimension is not the last dimension in the image
         **/
-        Block (const NiftiImage &image, const int dimension, const int index)
+        Block (const NiftiImage &image, const int dimension, const dim_t index)
             : image(image), dimension(dimension), index(index)
         {
             if (dimension != image->ndim)
@@ -707,6 +921,158 @@ public:
         std::vector<TargetType> getData (const bool useSlope = true) const;
     };
     
+    /**
+     * Inner class representing an xform matrix, which indicates the orientation and other spatial
+     * properties of an image. Specifically, an xform is an affine transformation in 3D space,
+     * representing the conversion from the image's coordinate system to canonical "real-world"
+     * space. The header file \c nifti1.h contains authoritative documentation.
+    **/
+    class Xform
+    {
+    public:
+#if RNIFTI_NIFTILIB_VERSION == 1
+        typedef float Element;                                      /**< Scalar element type */
+        typedef Vector<float,4> Vector4;                            /**< 4-element vector type */
+        typedef Vector<float,3> Vector3;                            /**< 3-element vector type */
+        typedef SquareMatrix<mat44,float,4> Matrix;                 /**< 4x4 matrix type */
+        typedef SquareMatrix<mat33,float,3> Submatrix;              /**< 3x3 matrix type */
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        typedef double Element;                                     /**< Scalar element type */
+        typedef Vector<double,4> Vector4;                           /**< 4-element vector type */
+        typedef Vector<double,3> Vector3;                           /**< 3-element vector type */
+        typedef SquareMatrix<nifti_dmat44,double,4> Matrix;         /**< 4x4 matrix type */
+        typedef SquareMatrix<nifti_dmat33,double,3> Submatrix;      /**< 3x3 matrix type */
+#endif
+        
+    protected:
+        Element *forward, *inverse, *qparams;                       /**< Pointers to linked C-style arrays */
+        Matrix mat;                                                 /**< The full xform matrix underpinning this object */
+        
+        /**
+         * Replace the current matrix with a new one. This function propagates the changes to the
+         * linked arrays, if they are not \c NULL.
+        **/
+        void replace (const Matrix &source);
+        
+    public:
+        /**
+         * Default constructor
+        **/
+        Xform ()
+            : forward(NULL), inverse(NULL), qparams(NULL), mat() {}
+        
+        /**
+         * Initialise from a 4x4 \ref SquareMatrix
+        **/
+        Xform (const Matrix &source)
+            : forward(NULL), inverse(NULL), qparams(NULL), mat(source) {}
+        
+        /**
+         * Initialise from a constant NIfTI \c mat44 or \c dmat44
+        **/
+        Xform (const Matrix::NativeType &source)
+            : forward(NULL), inverse(NULL), qparams(NULL), mat(source) {}
+        
+        /**
+         * Initialise from a NIfTI \c mat44 or \c dmat44. The data in the linked matrix will be
+         * replaced if this object is updated.
+        **/
+        Xform (Matrix::NativeType &source)
+            : forward(*source.m), inverse(NULL), qparams(NULL), mat(source) {}
+        
+        /**
+         * Initialise from forward and backward matrices, and optionally quaternion parameters.
+         * These will all be linked to the new object and replaced if it is updated.
+        **/
+        Xform (Matrix::NativeType &source, Matrix::NativeType &inverse, Element *qparams = NULL)
+            : forward(*source.m), inverse(*inverse.m), qparams(qparams), mat(source) {}
+        
+#ifdef USING_R
+        /**
+         * Initialise from an R numeric matrix object
+        **/
+        Xform (SEXP source)
+            : forward(NULL), inverse(NULL), qparams(NULL), mat(Matrix(source)) {}
+#endif
+        
+        /**
+         * Allows an \c Xform to be treated as a constant NIfTI matrix implicitly, making it
+         * directly compatible with API functions
+        **/
+        operator const Matrix::NativeType () const { return mat; }
+        
+        /**
+         * Allows an \c Xform to be treated as a NIfTI matrix implicitly, making it directly
+         * compatible with API functions
+        **/
+        operator Matrix::NativeType () { return mat; }
+        
+        /**
+         * Copy assignment operator, taking an \c Xform and replacing linked data
+        **/
+        Xform & operator= (const Xform &source)
+        {
+            replace(source.mat);
+            return *this;
+        }
+        
+        /**
+         * Copy assignment operator, taking a \c SquareMatrix and replacing linked data
+        **/
+        Xform & operator= (const Matrix &source)
+        {
+            replace(source);
+            return *this;
+        }
+        
+        /**
+         * Access the xform matrix as an immutable \c SquareMatrix object
+        **/
+        const Matrix & matrix () const { return mat; }
+        
+        /**
+         * Obtain the upper left 3x3 submatrix from the xform matrix
+        **/
+        Submatrix submatrix () const;
+        
+        /**
+         * Obtain the 3x3 rotation matrix from the xform matrix, with scale and skew components
+         * removed
+        **/
+        Submatrix rotation () const;
+        
+        /**
+         * Returns the \c qfac value, which should be 1 where the xform matrix represents a
+         * right-handed coordinate system (like \c RAS, the NIfTI default) and -1 for a left-handed
+         * system (like \c LAS, the ANALYZE default). Also see the \ref orientation method
+        **/
+        Element handedness () const;
+        
+        /**
+         * Obtain the quaternion representation of the xform's rotation component
+        **/
+        Vector4 quaternion () const;
+        
+        /**
+         * Obtain the translation component of the xform matrix
+        **/
+        Vector3 offset () const;
+        
+        /**
+         * Obtain the pixel spacing of the image in each spatial dimension
+        **/
+        Vector3 spacing () const;
+        
+        /**
+         * Obtain the approximate orientation of the image's coordinate frame, as a three-character
+         * string consisting of some permutation of the letters \c L or \c R (for left or right),
+         * \c P or \c A (for posterior or anterior) and \c I or \c S (for inferior or superior).
+         * These give the canonical axes most closely aligned with each of the three dimensions as
+         * stored
+        **/
+        std::string orientation () const;
+    };
+    
 #ifdef USING_R
     /**
      * Convert between R \c SEXP object type and \c nifti_image datatype codes
@@ -726,20 +1092,6 @@ public:
             throw std::runtime_error("Array elements must be numeric");
     }
 #endif
-    
-    /**
-     * Extract the pure rotation part of a 4x4 xform matrix
-     * @param matrix An xform matrix
-     * @return A 3x3 rotation matrix
-    **/
-    static mat33 xformToRotation (const mat44 matrix);
-    
-    /**
-     * Convert a 4x4 xform matrix to a string describing its canonical axes
-     * @param matrix An xform matrix
-     * @return A string containing three characters
-    **/
-    static std::string xformToString (const mat44 matrix);
     
     /**
      * Get the NIfTI format version used by the file at the specified path
@@ -833,13 +1185,13 @@ protected:
      * @param dim A vector of image dimensions
      * @param datatype A datatype code for the image data
     **/
-    void initFromDims (const std::vector<int> &dim, const int datatype);
+    void initFromDims (const std::vector<dim_t> &dim, const int datatype);
 
     /**
      * Modify the pixel dimensions, and potentially the xform matrices to match
      * @param pixdim Vector of new pixel dimensions
     **/
-    void updatePixdim (const std::vector<float> &pixdim);
+    void updatePixdim (const std::vector<pixdim_t> &pixdim);
     
     /**
      * Modify the pixel dimension units
@@ -868,7 +1220,7 @@ public:
         else
             acquire(source);
 #ifndef NDEBUG
-        Rc_printf("Creating NiftiImage with pointer %p (from NiftiImage)\n", this->image);
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from NiftiImage)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
     }
     
@@ -881,7 +1233,7 @@ public:
     {
         this->copy(source);
 #ifndef NDEBUG
-        Rc_printf("Creating NiftiImage with pointer %p (from Block)\n", this->image);
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from Block)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
     }
     
@@ -899,7 +1251,7 @@ public:
         else
             acquire(image);
 #ifndef NDEBUG
-        Rc_printf("Creating NiftiImage with pointer %p (from pointer)\n", this->image);
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from pointer)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
     }
     
@@ -908,14 +1260,14 @@ public:
      * @param dim A vector of image dimensions
      * @param datatype A datatype code for the image data
     **/
-    NiftiImage (const std::vector<int> &dim, const int datatype);
+    NiftiImage (const std::vector<dim_t> &dim, const int datatype);
     
     /**
      * Initialise from basic metadata, allocating and zeroing pixel data
      * @param dim A vector of image dimensions
      * @param datatype A datatype string for the image data
     **/
-    NiftiImage (const std::vector<int> &dim, const std::string &datatype);
+    NiftiImage (const std::vector<dim_t> &dim, const std::string &datatype);
     
     /**
      * Initialise using a path string
@@ -931,7 +1283,7 @@ public:
      * @param volumes The volumes to read in (squashing all dimensions above the third together)
      * @exception runtime_error If reading from the file fails, or \c volumes is empty
     **/
-    NiftiImage (const std::string &path, const std::vector<int> &volumes);
+    NiftiImage (const std::string &path, const std::vector<dim_t> &volumes);
     
 #ifdef USING_R
     /**
@@ -981,7 +1333,7 @@ public:
     {
         copy(source);
 #ifndef NDEBUG
-        Rc_printf("Creating NiftiImage with pointer %p (from NiftiImage)\n", this->image);
+        Rc_printf("Creating NiftiImage (v%d), with pointer %p (from NiftiImage)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
         return *this;
     }
@@ -995,7 +1347,7 @@ public:
     {
         copy(source);
 #ifndef NDEBUG
-        Rc_printf("Creating NiftiImage with pointer %p (from Block)\n", this->image);
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from Block)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
         return *this;
     }
@@ -1052,24 +1404,24 @@ public:
      * Return the dimensions of the image
      * @return A vector of integers giving the width in each dimension
     **/
-    std::vector<int> dim () const
+    std::vector<dim_t> dim () const
     {
         if (image == NULL)
-            return std::vector<int>();
+            return std::vector<dim_t>();
         else
-            return std::vector<int>(image->dim+1, image->dim+image->ndim+1);
+            return std::vector<dim_t>(image->dim+1, image->dim+image->ndim+1);
     }
     
     /**
      * Return the dimensions of the pixels or voxels in the image
      * @return A vector of floating-point values giving the pixel width in each dimension
     **/
-    std::vector<float> pixdim () const
+    std::vector<pixdim_t> pixdim () const
     {
         if (image == NULL)
-            return std::vector<float>();
+            return std::vector<pixdim_t>();
         else
-            return std::vector<float>(image->pixdim+1, image->pixdim+image->ndim+1);
+            return std::vector<pixdim_t>(image->pixdim+1, image->pixdim+image->ndim+1);
     }
     
     /**
@@ -1150,12 +1502,17 @@ public:
     NiftiImage & replaceData (const NiftiImageData &data);
     
     /**
-     * Drop the data from the image, retaining only the metadata
+     * Drop the data from the image, retaining only the metadata. This method invalidates any
+     * \ref NiftiImageData objects referencing the old data
      * @return Self, after dropping the data
     **/
     NiftiImage & dropData ()
     {
+#if RNIFTI_NIFTILIB_VERSION == 1
         nifti_image_unload(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti2_image_unload(image);
+#endif
         return *this;
     }
     
@@ -1165,7 +1522,7 @@ public:
      * @return Self, after rescaling the metadata
      * @note No interpolation is performed on the pixel data, which is simply dropped
     **/
-    NiftiImage & rescale (const std::vector<float> &scales);
+    NiftiImage & rescale (const std::vector<pixdim_t> &scales);
     
     /**
      * Reorient the image by permuting dimensions and potentially reversing some
@@ -1198,16 +1555,41 @@ public:
     
     /**
      * Obtain an xform matrix, indicating the orientation of the image
-     * @param preferQuaternion If \c true, use the qform matrix in preference to the sform
-     * @return A 4x4 matrix
+     * @param preferQuaternion If \c true, use the qform matrix in preference to the sform;
+     * otherwise prefer the sform
+     * @return An \ref Xform object
     **/
-    mat44 xform (const bool preferQuaternion = true) const;
+    const Xform xform (const bool preferQuaternion = true) const;
+    
+    /**
+     * Access the qform matrix
+     * @return An \ref Xform object
+    **/
+    const Xform qform () const { return (image == NULL ? Xform() : Xform(image->qto_xyz)); }
+    
+    /**
+     * Access the qform matrix
+     * @return An \ref Xform object
+    **/
+    Xform qform () { return (image == NULL ? Xform() : Xform(image->qto_xyz, image->qto_ijk, &image->quatern_b)); }
+    
+    /**
+     * Access the sform matrix
+     * @return An \ref Xform object
+    **/
+    const Xform sform () const { return (image == NULL ? Xform() : Xform(image->sto_xyz)); }
+    
+    /**
+     * Access the sform matrix
+     * @return An \ref Xform object
+    **/
+    Xform sform () { return (image == NULL ? Xform() : Xform(image->sto_xyz, image->sto_ijk)); }
     
     /**
      * Return the number of blocks in the image
      * @return An integer giving the number of blocks in the image
     **/
-    int nBlocks () const { return (image == NULL ? 0 : image->dim[image->ndim]); }
+    dim_t nBlocks () const { return (image == NULL ? 0 : image->dim[image->ndim]); }
     
     /**
      * Extract a block from the image
@@ -1286,17 +1668,21 @@ public:
      * Write the image to a NIfTI-1 file
      * @param fileName The file name to write to, with appropriate suffix (e.g. ".nii.gz")
      * @param datatype The datatype to use when writing the file
+     * @param filetype The file type to create: a \c NIFTI_FTYPE constant or -1. In the latter case
+     * the file name is used to determine the file type
      * @return A pair of strings, giving the final header and image paths in that order
     **/
-    std::pair<std::string,std::string> toFile (const std::string fileName, const int datatype = DT_NONE) const;
+    std::pair<std::string,std::string> toFile (const std::string fileName, const int datatype = DT_NONE, const int filetype = -1) const;
     
     /**
      * Write the image to a NIfTI-1 file
      * @param fileName The file name to write to, with appropriate suffix (e.g. ".nii.gz")
      * @param datatype The datatype to use when writing the file, or "auto"
+     * @param filetype The file type to create: a \c NIFTI_FTYPE constant or -1. In the latter case
+     * the file name is used to determine the file type
      * @return A pair of strings, giving the final header and image paths in that order
     **/
-    std::pair<std::string,std::string> toFile (const std::string fileName, const std::string &datatype) const;
+    std::pair<std::string,std::string> toFile (const std::string fileName, const std::string &datatype, const int filetype = -1) const;
     
 #ifdef USING_R
     
@@ -1321,17 +1707,11 @@ public:
     **/
     Rcpp::RObject toArrayOrPointer (const bool internal, const std::string label) const;
     
-    /**
-     * Create an R list containing raw image metadata
-     * @return An R list
-    **/
-    Rcpp::RObject headerToList () const;
-    
 #endif
 
 };
 
-// Include implementations
+// Include image implementations
 #include "RNifti/NiftiImage_impl.h"
 
 } // main namespace

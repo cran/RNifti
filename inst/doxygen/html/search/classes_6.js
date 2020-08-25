@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['typehandler',['TypeHandler',['../a00022.html',1,'RNifti::NiftiImageData']]]
+  ['squarematrix_104',['SquareMatrix',['../a00050.html',1,'RNifti']]]
 ];

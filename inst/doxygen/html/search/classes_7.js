@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['valuetype',['ValueType',['../a00014.html',1,'RNifti::rgba32_t']]]
+  ['typehandler_105',['TypeHandler',['../a00022.html',1,'RNifti::NiftiImageData']]]
 ];

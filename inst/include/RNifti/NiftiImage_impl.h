@@ -3,43 +3,6 @@
 
 namespace internal {
 
-struct vec3
-{
-    float v[3];
-
-    vec3 operator-() const
-    {
-        vec3 r;
-        r.v[0] = -v[0];
-        r.v[1] = -v[1];
-        r.v[2] = -v[2];
-        return r;
-    }
-};
-
-inline mat33 topLeftCorner (const mat44 &matrix)
-{
-    mat33 newMatrix;
-    for (int i=0; i<3; i++)
-    {
-        for (int j=0; j<3; j++)
-            newMatrix.m[i][j] = matrix.m[i][j];
-    }
-    return newMatrix;
-}
-
-inline vec3 matrixVectorProduct (const mat33 &matrix, const vec3 &vector)
-{
-    vec3 newVector;
-    for (int i=0; i<3; i++)
-    {
-        newVector.v[i] = 0.0;
-        for (int j=0; j<3; j++)
-            newVector.v[i] += matrix.m[i][j] * vector.v[j];
-    }
-    return newVector;
-}
-
 // A poor man's NaN check, but should work whenever proper IEEE arithmetic is being used
 template <typename Type>
 inline bool isNaN (const Type x) { return (x != x); }
@@ -127,6 +90,127 @@ inline int stringToDatatype (const std::string &datatype)
         return datatypeCodes[lowerCaseDatatype];
 }
 
+template <typename TargetType>
+struct ElementConverter
+{
+    template <typename SourceType>
+    TargetType operator() (const SourceType &source)
+    {
+        return static_cast<TargetType>(source);
+    }
+};
+
+#if RNIFTI_NIFTILIB_VERSION == 1
+
+// Byte-by-byte conversion of nifti2_image struct to a nifti1_image
+// By nature this is a risky operation, which has to make assumptions about the layout of the structs in memory
+inline nifti1_image * convertImageV2to1 (nifti2_image *image)
+{
+    if (image == NULL)
+        return NULL;
+    
+    nifti1_image *result = (nifti1_image *) calloc(1, sizeof(nifti1_image));
+    
+#ifndef NDEBUG
+    Rc_printf("Converting v2 image with pointer %p to v1 image with pointer %p\n", image, result);
+#endif
+    
+    // We assume that each block of a given type is stored contiguously like an array - this should be the case, but may not be guaranteed
+    std::transform(&image->ndim, &image->ndim + 16, &result->ndim, ElementConverter<int>());
+    result->nvox = static_cast<int>(image->nvox);
+    std::copy(&image->nbyper, &image->nbyper + 2, &result->nbyper);
+    std::transform(&image->dx, &image->dx + 19, &result->dx, ElementConverter<float>());
+    std::copy(&image->qform_code, &image->qform_code + 6, &result->qform_code);
+    std::transform(&image->slice_start, &image->slice_start + 2, &result->slice_start, ElementConverter<int>());
+    std::transform(&image->slice_duration, &image->slice_duration + 73, &result->slice_duration, ElementConverter<float>());
+    std::copy(&image->xyz_units, &image->xyz_units + 4, &result->xyz_units);
+    std::transform(&image->intent_p1, &image->intent_p1 + 3, &result->intent_p1, ElementConverter<float>());
+    std::copy(static_cast<char*>(image->intent_name), static_cast<char*>(image->intent_name) + 120, static_cast<char*>(result->intent_name));
+    result->iname_offset = static_cast<int>(image->iname_offset);
+    std::copy(&image->swapsize, &image->swapsize + 2, &result->swapsize);
+    result->analyze75_orient = image->analyze75_orient;
+    
+    // Copy buffers, since the memory-freeing logic isn't portable between struct versions
+    result->fname = nifti_strdup(image->fname);
+    result->iname = nifti_strdup(image->iname);
+    if (image->data != NULL)
+    {
+        result->data = calloc(result->nvox, result->nbyper);
+        memcpy(result->data, image->data, result->nvox * result->nbyper);
+    }
+    
+    // Copy extensions
+    result->num_ext = image->num_ext;
+    result->ext_list = result->num_ext == 0 ? NULL : (nifti1_extension *) calloc(result->num_ext, sizeof(nifti1_extension));
+    for (int i=0; i<result->num_ext; i++)
+    {
+        result->ext_list[i].esize = image->ext_list[i].esize;
+        result->ext_list[i].ecode = image->ext_list[i].ecode;
+        result->ext_list[i].edata = (char *) calloc(result->ext_list[i].esize - 8, sizeof(char));
+        memcpy(result->ext_list[i].edata, image->ext_list[i].edata, result->ext_list[i].esize - 8);
+    }
+    
+    // Check the result looks plausible
+    if (!nifti_nim_is_valid(result, 0))
+        throw std::runtime_error("Conversion between image versions failed");
+    
+    return result;
+}
+
+#elif RNIFTI_NIFTILIB_VERSION == 2
+
+// Byte-by-byte conversion of nifti1_image struct to a nifti2_image
+inline nifti2_image * convertImageV1to2 (nifti1_image *image)
+{
+    if (image == NULL)
+        return NULL;
+    
+    nifti2_image *result = (nifti2_image *) calloc(1, sizeof(nifti2_image));
+    
+#ifndef NDEBUG
+    Rc_printf("Converting v1 image with pointer %p to v2 image with pointer %p\n", image, result);
+#endif
+    
+    std::transform(&image->ndim, &image->ndim + 16, &result->ndim, ElementConverter<int64_t>());
+    result->nvox = static_cast<int64_t>(image->nvox);
+    std::copy(&image->nbyper, &image->nbyper + 2, &result->nbyper);
+    std::transform(&image->dx, &image->dx + 19, &result->dx, ElementConverter<double>());
+    std::copy(&image->qform_code, &image->qform_code + 6, &result->qform_code);
+    std::transform(&image->slice_start, &image->slice_start + 2, &result->slice_start, ElementConverter<int64_t>());
+    std::transform(&image->slice_duration, &image->slice_duration + 73, &result->slice_duration, ElementConverter<double>());
+    std::copy(&image->xyz_units, &image->xyz_units + 4, &result->xyz_units);
+    std::transform(&image->intent_p1, &image->intent_p1 + 3, &result->intent_p1, ElementConverter<double>());
+    std::copy(static_cast<char*>(image->intent_name), static_cast<char*>(image->intent_name) + 120, static_cast<char*>(result->intent_name));
+    result->iname_offset = static_cast<int64_t>(image->iname_offset);
+    std::copy(&image->swapsize, &image->swapsize + 2, &result->swapsize);
+    result->analyze75_orient = image->analyze75_orient;
+    
+    result->fname = nifti_strdup(image->fname);
+    result->iname = nifti_strdup(image->iname);
+    if (image->data != NULL)
+    {
+        result->data = calloc(result->nvox, result->nbyper);
+        memcpy(result->data, image->data, result->nvox * result->nbyper);
+    }
+    
+    result->num_ext = image->num_ext;
+    result->ext_list = result->num_ext == 0 ? NULL : (nifti1_extension *) calloc(result->num_ext, sizeof(nifti1_extension));
+    for (int i=0; i<result->num_ext; i++)
+    {
+        result->ext_list[i].esize = image->ext_list[i].esize;
+        result->ext_list[i].ecode = image->ext_list[i].ecode;
+        result->ext_list[i].edata = (char *) calloc(result->ext_list[i].esize - 8, sizeof(char));
+        memcpy(result->ext_list[i].edata, image->ext_list[i].edata, result->ext_list[i].esize - 8);
+    }
+    
+    if (!nifti2_nim_is_valid(result, 0))
+        throw std::runtime_error("Conversion between image versions failed");
+    
+    return result;
+}
+
+#endif // RNIFTI_NIFTILIB_VERSION
+
 #ifdef USING_R
 inline const char * stringToPath (const std::string &str) { return R_ExpandFileName(str.c_str()); }
 #else
@@ -208,7 +292,7 @@ inline void updateHeader (nifti_1_header *header, const Rcpp::List &list, const 
     copyIfPresent(list, names, "slice_start", header->slice_start);
     if (names.count("pixdim") == 1)
     {
-        std::vector<float> pixdim = list["pixdim"];
+        std::vector<NiftiImage::pixdim_t> pixdim = list["pixdim"];
         if (pixdim.size() != 8)
             throw std::runtime_error("Field \"pixdim\" must contain 8 elements");
         for (size_t i=0; i<8; i++)
@@ -241,7 +325,7 @@ inline void updateHeader (nifti_1_header *header, const Rcpp::List &list, const 
     
     if (names.count("srow_x") == 1)
     {
-        std::vector<float> srow_x = list["srow_x"];
+        std::vector<NiftiImage::Xform::Element> srow_x = list["srow_x"];
         if (srow_x.size() != 4)
             throw std::runtime_error("Field \"srow_x\" must contain 4 elements");
         for (size_t i=0; i<4; i++)
@@ -249,7 +333,7 @@ inline void updateHeader (nifti_1_header *header, const Rcpp::List &list, const 
     }
     if (names.count("srow_y") == 1)
     {
-        std::vector<float> srow_y = list["srow_y"];
+        std::vector<NiftiImage::Xform::Element> srow_y = list["srow_y"];
         if (srow_y.size() != 4)
             throw std::runtime_error("Field \"srow_y\" must contain 4 elements");
         for (size_t i=0; i<4; i++)
@@ -257,7 +341,7 @@ inline void updateHeader (nifti_1_header *header, const Rcpp::List &list, const 
     }
     if (names.count("srow_z") == 1)
     {
-        std::vector<float> srow_z = list["srow_z"];
+        std::vector<NiftiImage::Xform::Element> srow_z = list["srow_z"];
         if (srow_z.size() != 4)
             throw std::runtime_error("Field \"srow_z\" must contain 4 elements");
         for (size_t i=0; i<4; i++)
@@ -303,6 +387,7 @@ inline void addAttributes (const SEXP pointer, const NiftiImage &source, const b
             imagePtr->dropData();
         Rcpp::XPtr<NiftiImage> xptr(imagePtr);
         object.attr(".nifti_image_ptr") = xptr;
+        object.attr(".nifti_image_ver") = RNIFTI_NIFTILIB_VERSION;
     }
 }
 
@@ -414,18 +499,101 @@ inline NiftiImageData::Element & NiftiImageData::Element::operator= (const Nifti
     return *this;
 }
 
-inline mat33 NiftiImage::xformToRotation (const mat44 matrix)
+inline void NiftiImage::Xform::replace (const Matrix &source)
 {
-    float qb, qc, qd, qfac;
-    nifti_mat44_to_quatern(matrix, &qb, &qc, &qd, NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
-    mat44 rotationMatrix = nifti_quatern_to_mat44(qb, qc, qd, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, qfac);
-    return internal::topLeftCorner(rotationMatrix);
+    mat = source;
+    if (forward != NULL)
+        std::copy(source.begin(), source.end(), forward);
+    if (inverse != NULL)
+    {
+        Matrix inv = source.inverse();
+        std::copy(inv.begin(), inv.end(), inverse);
+    }
+    if (qparams != NULL)
+    {
+#if RNIFTI_NIFTILIB_VERSION == 1
+        nifti_mat44_to_quatern(mat, qparams, qparams+1, qparams+2, qparams+3, qparams+4, qparams+5, NULL, NULL, NULL, qparams+6);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti_dmat44_to_quatern(mat, qparams, qparams+1, qparams+2, qparams+3, qparams+4, qparams+5, NULL, NULL, NULL, qparams+6);
+#endif
+    }
 }
 
-inline std::string NiftiImage::xformToString (const mat44 matrix)
+inline NiftiImage::Xform::Submatrix NiftiImage::Xform::submatrix () const
+{
+    NiftiImage::Xform::Submatrix result;
+    for (int i=0; i<3; i++)
+    {
+        for (int j=0; j<3; j++)
+            result(i,j) = mat(i,j);
+    }
+    return result;
+}
+
+inline NiftiImage::Xform::Submatrix NiftiImage::Xform::rotation () const
+{
+    NiftiImage::Xform::Vector3 qbcd;
+    NiftiImage::Xform::Element qfac;
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_mat44_to_quatern(mat, &qbcd[0], &qbcd[1], &qbcd[2], NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
+    NiftiImage::Xform rotation = nifti_quatern_to_mat44(qbcd[0], qbcd[1], qbcd[2], 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, qfac);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_quatern(mat, &qbcd[0], &qbcd[1], &qbcd[2], NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
+    NiftiImage::Xform rotation = nifti_quatern_to_dmat44(qbcd[0], qbcd[1], qbcd[2], 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, qfac);
+#endif
+    return rotation.submatrix();
+}
+
+inline NiftiImage::Xform::Element NiftiImage::Xform::handedness () const
+{
+    NiftiImage::Xform::Element qfac;
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_mat44_to_quatern(mat, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_quatern(mat, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, &qfac);
+#endif
+    return qfac;
+}
+
+inline NiftiImage::Xform::Vector4 NiftiImage::Xform::quaternion () const
+{
+    NiftiImage::Xform::Vector4 q;
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_mat44_to_quatern(mat, &q[1], &q[2], &q[3], NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_quatern(mat, &q[1], &q[2], &q[3], NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+#endif
+    q[0] = 1.0 - (q[1]*q[1] + q[2]*q[2] + q[3]*q[3]);
+    return q;
+}
+
+inline NiftiImage::Xform::Vector3 NiftiImage::Xform::offset () const
+{
+    NiftiImage::Xform::Vector3 vec;
+    for (int i=0; i<3; i++)
+        vec[i] = mat(i,3);
+    return vec;
+}
+
+inline NiftiImage::Xform::Vector3 NiftiImage::Xform::spacing () const
+{
+    NiftiImage::Xform::Vector3 vec;
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_mat44_to_quatern(mat, NULL, NULL, NULL, NULL, NULL, NULL, &vec[0], &vec[1], &vec[2], NULL);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_quatern(mat, NULL, NULL, NULL, NULL, NULL, NULL, &vec[0], &vec[1], &vec[2], NULL);
+#endif
+    return vec;
+}
+
+inline std::string NiftiImage::Xform::orientation () const
 {
     int icode, jcode, kcode;
-    nifti_mat44_to_orientation(matrix, &icode, &jcode, &kcode);
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_mat44_to_orientation(mat, &icode, &jcode, &kcode);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_orientation(mat, &icode, &jcode, &kcode);
+#endif
     
     int codes[3] = { icode, jcode, kcode };
     std::string result("---");
@@ -446,6 +614,7 @@ inline std::string NiftiImage::xformToString (const mat44 matrix)
 
 inline int NiftiImage::fileVersion (const std::string &path)
 {
+#if RNIFTI_NIFTILIB_VERSION == 1
     nifti_1_header *header = nifti_read_header(internal::stringToPath(path), NULL, false);
     if (header == NULL)
         return -1;
@@ -471,6 +640,12 @@ inline int NiftiImage::fileVersion (const std::string &path)
         free(header);
         return version;
     }
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    int version;
+    void *header = nifti2_read_header(internal::stringToPath(path), &version, true);
+    free(header);
+    return version;
+#endif
 }
 
 inline void NiftiImage::acquire (nifti_image * const image)
@@ -489,7 +664,7 @@ inline void NiftiImage::acquire (nifti_image * const image)
             (*this->refCount)++;
         
 #ifndef NDEBUG
-        Rc_printf("Acquiring pointer %p (reference count is %d)\n", this->image, *this->refCount);
+        Rc_printf("Acquiring pointer %p (v%d; reference count is %d)\n", this->image, RNIFTI_NIFTILIB_VERSION, *this->refCount);
 #endif
     }
 }
@@ -502,11 +677,15 @@ inline void NiftiImage::release ()
         {
             (*this->refCount)--;
 #ifndef NDEBUG
-            Rc_printf("Releasing pointer %p (reference count is %d)\n", this->image, *this->refCount);
+            Rc_printf("Releasing pointer %p (v%d; reference count is %d)\n", this->image, RNIFTI_NIFTILIB_VERSION, *this->refCount);
 #endif
             if (*this->refCount < 1)
             {
+#if RNIFTI_NIFTILIB_VERSION == 1
                 nifti_image_free(this->image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+                nifti2_image_free(this->image);
+#endif
                 this->image = NULL;
                 delete this->refCount;
                 this->refCount = NULL;
@@ -523,6 +702,7 @@ inline void NiftiImage::copy (const nifti_image *source)
         acquire(NULL);
     else
     {
+#if RNIFTI_NIFTILIB_VERSION == 1
         acquire(nifti_copy_nim_info(source));
         if (source->data != NULL)
         {
@@ -530,12 +710,22 @@ inline void NiftiImage::copy (const nifti_image *source)
             image->data = calloc(1, dataSize);
             memcpy(image->data, source->data, dataSize);
         }
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        acquire(nifti2_copy_nim_info(source));
+        if (source->data != NULL)
+        {
+            size_t dataSize = nifti2_get_volsize(source);
+            image->data = calloc(1, dataSize);
+            memcpy(image->data, source->data, dataSize);
+        }
+#endif
     }
 }
 
 inline void NiftiImage::copy (const NiftiImage &source)
 {
     const nifti_image *sourceStruct = source;
+
     copy(sourceStruct);
 }
 
@@ -546,6 +736,7 @@ inline void NiftiImage::copy (const Block &source)
         acquire(NULL);
     else
     {
+#if RNIFTI_NIFTILIB_VERSION == 1
         acquire(nifti_copy_nim_info(sourceStruct));
         image->dim[0] = source.image->dim[0] - 1;
         image->dim[source.dimension] = 1;
@@ -558,6 +749,20 @@ inline void NiftiImage::copy (const Block &source)
             image->data = calloc(1, blockSize);
             memcpy(image->data, static_cast<char*>(source.image->data) + blockSize*source.index, blockSize);
         }
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        acquire(nifti2_copy_nim_info(sourceStruct));
+        image->dim[0] = source.image->dim[0] - 1;
+        image->dim[source.dimension] = 1;
+        image->pixdim[source.dimension] = 1.0;
+        nifti2_update_dims_from_array(image);
+        
+        if (sourceStruct->data != NULL)
+        {
+            size_t blockSize = nifti2_get_volsize(image);
+            image->data = calloc(1, blockSize);
+            memcpy(image->data, static_cast<char*>(source.image->data) + blockSize*source.index, blockSize);
+        }
+#endif
     }
 }
 
@@ -569,7 +774,7 @@ inline void NiftiImage::initFromNiftiS4 (const Rcpp::RObject &object, const bool
     nifti_1_header header;
     header.sizeof_hdr = 348;
     
-    const std::vector<int> dims = object.slot("dim_");
+    const std::vector<dim_t> dims = object.slot("dim_");
     for (int i=0; i<8; i++)
         header.dim[i] = dims[i];
     
@@ -586,7 +791,7 @@ inline void NiftiImage::initFromNiftiS4 (const Rcpp::RObject &object, const bool
     header.slice_code = Rcpp::as<int>(object.slot("slice_code"));
     header.slice_duration = object.slot("slice_duration");
     
-    const std::vector<float> pixdims = object.slot("pixdim");
+    const std::vector<pixdim_t> pixdims = object.slot("pixdim");
     for (int i=0; i<8; i++)
         header.pixdim[i] = pixdims[i];
     header.xyzt_units = Rcpp::as<int>(object.slot("xyzt_units"));
@@ -621,9 +826,9 @@ inline void NiftiImage::initFromNiftiS4 (const Rcpp::RObject &object, const bool
     header.qoffset_y = object.slot("qoffset_y");
     header.qoffset_z = object.slot("qoffset_z");
     
-    const std::vector<float> srow_x = object.slot("srow_x");
-    const std::vector<float> srow_y = object.slot("srow_y");
-    const std::vector<float> srow_z = object.slot("srow_z");
+    const std::vector<Xform::Element> srow_x = object.slot("srow_x");
+    const std::vector<Xform::Element> srow_y = object.slot("srow_y");
+    const std::vector<Xform::Element> srow_z = object.slot("srow_z");
     for (int i=0; i<4; i++)
     {
         header.srow_x[i] = srow_x[i];
@@ -639,7 +844,11 @@ inline void NiftiImage::initFromNiftiS4 (const Rcpp::RObject &object, const bool
     else
         throw std::runtime_error("Data type is not supported");
     
+#if RNIFTI_NIFTILIB_VERSION == 1
     acquire(nifti_convert_nhdr2nim(header, NULL));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    acquire(nifti_convert_n1hdr2nim(header, NULL));
+#endif
     
     const SEXP data = PROTECT(object.slot(".Data"));
     if (!copyData || Rf_length(data) <= 1)
@@ -677,8 +886,8 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
     
     const int datatype = (Rf_isNull(data) ? DT_INT32 : sexpTypeToNiftiType(data.sexp_type()));
     
-    int dims[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    const std::vector<int> dimVector = mriImage.field("imageDims");
+    dim_t dims[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    const std::vector<dim_t> dimVector = mriImage.field("imageDims");
     const int nDims = std::min(7, int(dimVector.size()));
     dims[0] = nDims;
     size_t nVoxels = 1;
@@ -689,7 +898,13 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
     }
     
     if (this->image == NULL)
+    {
+#if RNIFTI_NIFTILIB_VERSION == 1
         acquire(nifti_make_new_nim(dims, datatype, FALSE));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        acquire(nifti2_make_new_nim(dims, datatype, FALSE));
+#endif
+    }
     else
     {
         std::copy(dims, dims+8, this->image->dim);
@@ -710,7 +925,7 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
     else
         this->image->data = NULL;
     
-    const std::vector<float> pixdimVector = mriImage.field("voxelDims");
+    const std::vector<pixdim_t> pixdimVector = mriImage.field("voxelDims");
     const int pixdimLength = pixdimVector.size();
     for (int i=0; i<std::min(pixdimLength,nDims); i++)
         this->image->pixdim[i+1] = std::abs(pixdimVector[i]);
@@ -722,20 +937,10 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
         this->image->qform_code = this->image->sform_code = 0;
     else
     {
-        mat44 matrix;
-        for (int i=0; i<4; i++)
-        {
-            for (int j=0; j<4; j++)
-                matrix.m[i][j] = static_cast<float>(xform(i,j));
-        }
-        
-        this->image->qto_xyz = matrix;
-        this->image->qto_ijk = nifti_mat44_inverse(image->qto_xyz);
-        nifti_mat44_to_quatern(image->qto_xyz, &image->quatern_b, &image->quatern_c, &image->quatern_d, &image->qoffset_x, &image->qoffset_y, &image->qoffset_z, NULL, NULL, NULL, &image->qfac);
-        
-        this->image->sto_xyz = matrix;
-        this->image->sto_ijk = nifti_mat44_inverse(image->sto_xyz);
-        
+        Xform::Matrix xformMatrix;
+        std::copy(xform.begin(), xform.end(), xformMatrix.begin());
+        this->qform() = xformMatrix;
+        this->sform() = xformMatrix;
         this->image->qform_code = this->image->sform_code = 2;
     }
 }
@@ -743,19 +948,23 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
 inline void NiftiImage::initFromList (const Rcpp::RObject &object)
 {
     Rcpp::List list(object);
+#if RNIFTI_NIFTILIB_VERSION == 1
     nifti_1_header *header = nifti_make_new_header(NULL, DT_FLOAT64);
-    
     internal::updateHeader(header, list);
-    
     acquire(nifti_convert_nhdr2nim(*header, NULL));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_1_header *header = nifti_make_new_n1_header(NULL, DT_FLOAT64);
+    internal::updateHeader(header, list);
+    acquire(nifti_convert_n1hdr2nim(*header, NULL));
+#endif
     this->image->data = NULL;
     free(header);
 }
 
 inline void NiftiImage::initFromArray (const Rcpp::RObject &object, const bool copyData)
 {
-    int dims[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-    const std::vector<int> dimVector = object.attr("dim");
+    dim_t dims[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    const std::vector<dim_t> dimVector = object.attr("dim");
     
     const int nDims = std::min(7, int(dimVector.size()));
     dims[0] = nDims;
@@ -768,11 +977,20 @@ inline void NiftiImage::initFromArray (const Rcpp::RObject &object, const bool c
         const int channels = (object.hasAttribute("channels") ? object.attr("channels") : 3);
         datatype = (channels == 4 ? DT_RGBA32 : DT_RGB24);
     }
+    
+#if RNIFTI_NIFTILIB_VERSION == 1
     acquire(nifti_make_new_nim(dims, datatype, int(copyData)));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    acquire(nifti2_make_new_nim(dims, datatype, int(copyData)));
+#endif
     
     if (copyData)
     {
+#if RNIFTI_NIFTILIB_VERSION == 1
         const size_t dataSize = nifti_get_volsize(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        const size_t dataSize = nifti2_get_volsize(image);
+#endif
         if (datatype == DT_INT32 || datatype == DT_RGBA32)
             memcpy(this->image->data, INTEGER(object), dataSize);
         else if (datatype == DT_RGB24)
@@ -790,7 +1008,7 @@ inline void NiftiImage::initFromArray (const Rcpp::RObject &object, const bool c
     
     if (object.hasAttribute("pixdim"))
     {
-        const std::vector<float> pixdimVector = object.attr("pixdim");
+        const std::vector<pixdim_t> pixdimVector = object.attr("pixdim");
         const int pixdimLength = pixdimVector.size();
         for (int i=0; i<std::min(pixdimLength,nDims); i++)
             this->image->pixdim[i+1] = pixdimVector[i];
@@ -803,12 +1021,17 @@ inline void NiftiImage::initFromArray (const Rcpp::RObject &object, const bool c
     }
 }
 
-inline void NiftiImage::initFromDims (const std::vector<int> &dim, const int datatype)
+inline void NiftiImage::initFromDims (const std::vector<dim_t> &dim, const int datatype)
 {
     const int nDims = std::min(7, int(dim.size()));
-    int dims[8] = { nDims, 0, 0, 0, 0, 0, 0, 0 };
+    dim_t dims[8] = { nDims, 0, 0, 0, 0, 0, 0, 0 };
     std::copy(dim.begin(), dim.begin() + nDims, &dims[1]);
+    
+#if RNIFTI_NIFTILIB_VERSION == 1
     acquire(nifti_make_new_nim(dims, datatype, 1));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    acquire(nifti2_make_new_nim(dims, datatype, 1));
+#endif
     
     if (image == NULL)
         throw std::runtime_error("Failed to create image from scratch");
@@ -823,13 +1046,22 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData, const boo
     if (imageObject.hasAttribute(".nifti_image_ptr"))
     {
         Rcpp::XPtr<NiftiImage> imagePtr(SEXP(imageObject.attr(".nifti_image_ptr")));
-        NiftiImage *ptr = imagePtr;
+        NiftiImage *ptr = imagePtr.get();
         if (ptr != NULL)
         {
-            if (MAYBE_SHARED(object) && !readOnly)
+#if RNIFTI_NIFTILIB_VERSION == 1
+            if (imageObject.hasAttribute(".nifti_image_ver") && int(imageObject.attr(".nifti_image_ver")) == 2)
+                acquire(internal::convertImageV2to1(reinterpret_cast<nifti2_image*>(ptr->image)));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            if (!imageObject.hasAttribute(".nifti_image_ver") || int(imageObject.attr(".nifti_image_ver")) == 1)
+                acquire(internal::convertImageV1to2(reinterpret_cast<nifti1_image*>(ptr->image)));
+#endif
+            // Copy if the object have multiple R-level references and we're not working read-only
+            else if (MAYBE_SHARED(object) && !readOnly)
                 copy(*ptr);
             else
                 acquire(*ptr);
+            
             resolved = true;
             
             if (imageObject.hasAttribute("dim"))
@@ -848,7 +1080,11 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData, const boo
         else if (Rf_isString(object))
         {
             const std::string path = Rcpp::as<std::string>(object);
+#if RNIFTI_NIFTILIB_VERSION == 1
             acquire(nifti_image_read(internal::stringToPath(path), readData));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            acquire(nifti2_image_read(internal::stringToPath(path), readData));
+#endif
             if (this->image == NULL)
                 throw std::runtime_error("Failed to read image from path " + path);
         }
@@ -869,72 +1105,99 @@ inline NiftiImage::NiftiImage (const SEXP object, const bool readData, const boo
     }
     
     if (this->image != NULL)
+    {
+#if RNIFTI_NIFTILIB_VERSION == 1
         nifti_update_dims_from_array(this->image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti2_update_dims_from_array(this->image);
+#endif
+    }
     
 #ifndef NDEBUG
-    Rc_printf("Creating NiftiImage with pointer %p (from SEXP)\n", this->image);
+    Rc_printf("Creating NiftiImage (v%d) with pointer %p (from SEXP)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
 }
 
 #endif // USING_R
 
-inline NiftiImage::NiftiImage (const std::vector<int> &dim, const int datatype)
+inline NiftiImage::NiftiImage (const std::vector<dim_t> &dim, const int datatype)
     : image(NULL), refCount(NULL)
 {
     initFromDims(dim, datatype);
 #ifndef NDEBUG
-    Rc_printf("Creating NiftiImage with pointer %p (from dims)\n", this->image);
+    Rc_printf("Creating NiftiImage (v%d) with pointer %p (from dims)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
 }
 
-inline NiftiImage::NiftiImage (const std::vector<int> &dim, const std::string &datatype)
+inline NiftiImage::NiftiImage (const std::vector<dim_t> &dim, const std::string &datatype)
     : image(NULL), refCount(NULL)
 {
     initFromDims(dim, internal::stringToDatatype(datatype));
 #ifndef NDEBUG
-    Rc_printf("Creating NiftiImage with pointer %p (from dims)\n", this->image);
+    Rc_printf("Creating NiftiImage (v%d) with pointer %p (from dims)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
 }
 
 inline NiftiImage::NiftiImage (const std::string &path, const bool readData)
     : image(NULL), refCount(NULL)
 {
+#if RNIFTI_NIFTILIB_VERSION == 1
     acquire(nifti_image_read(internal::stringToPath(path), readData));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    acquire(nifti2_image_read(internal::stringToPath(path), readData));
+#endif
     
     if (image == NULL)
         throw std::runtime_error("Failed to read image from path " + path);
     
 #ifndef NDEBUG
-    Rc_printf("Creating NiftiImage with pointer %p (from string)\n", this->image);
+    Rc_printf("Creating NiftiImage (v%d) with pointer %p (from string)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
 }
 
-inline NiftiImage::NiftiImage (const std::string &path, const std::vector<int> &volumes)
+inline NiftiImage::NiftiImage (const std::string &path, const std::vector<dim_t> &volumes)
     : image(NULL), refCount(NULL)
 {
     if (volumes.empty())
         throw std::runtime_error("The vector of volumes is empty");
     
     nifti_brick_list brickList;
-    acquire(nifti_image_read_bricks(internal::stringToPath(path), volumes.size(), &volumes[0], &brickList));
+    
+#if RNIFTI_NIFTILIB_VERSION == 1
+    acquire(nifti_image_read_bricks(internal::stringToPath(path), volumes.size(), &volumes.front(), &brickList));
+    
     if (image == NULL)
         throw std::runtime_error("Failed to read image from path " + path);
     
     size_t brickSize = image->nbyper * image->nx * image->ny * image->nz;
     image->data = calloc(1, nifti_get_volsize(image));
-    for (int i=0; i<brickList.nbricks; i++)
+    for (dim_t i=0; i<brickList.nbricks; i++)
         memcpy((char *) image->data + i * brickSize, brickList.bricks[i], brickSize);
+    
     nifti_free_NBL(&brickList);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    acquire(nifti2_image_read_bricks(internal::stringToPath(path), volumes.size(), &volumes.front(), &brickList));
+    
+    if (image == NULL)
+        throw std::runtime_error("Failed to read image from path " + path);
+    
+    size_t brickSize = image->nbyper * image->nx * image->ny * image->nz;
+    image->data = calloc(1, nifti2_get_volsize(image));
+    for (dim_t i=0; i<brickList.nbricks; i++)
+        memcpy((char *) image->data + i * brickSize, brickList.bricks[i], brickSize);
+    
+    nifti2_free_NBL(&brickList);
+#endif
     
 #ifndef NDEBUG
-    Rc_printf("Creating NiftiImage with pointer %p (from string and volume vector)\n", this->image);
+    Rc_printf("Creating NiftiImage (v%d) with pointer %p (from string and volume vector)\n", RNIFTI_NIFTILIB_VERSION, this->image);
 #endif
 }
 
-inline void NiftiImage::updatePixdim (const std::vector<float> &pixdim)
+inline void NiftiImage::updatePixdim (const std::vector<pixdim_t> &pixdim)
 {
     const int nDims = image->dim[0];
-    const std::vector<float> origPixdim(image->pixdim+1, image->pixdim+4);
+    const std::vector<pixdim_t> origPixdim(image->pixdim+1, image->pixdim+4);
     
     for (int i=1; i<8; i++)
         image->pixdim[i] = 0.0;
@@ -945,42 +1208,14 @@ inline void NiftiImage::updatePixdim (const std::vector<float> &pixdim)
     
     if (!std::equal(origPixdim.begin(), origPixdim.begin() + std::min(3,nDims), pixdim.begin()))
     {
-        mat33 scaleMatrix;
-        for (int i=0; i<3; i++)
-        {
-            for (int j=0; j<3; j++)
-            {
-                if (i != j)
-                    scaleMatrix.m[i][j] = 0.0;
-                else if (i >= pixdimLength)
-                    scaleMatrix.m[i][j] = 1.0;
-                else
-                    scaleMatrix.m[i][j] = pixdim[i] / origPixdim[i];
-            }
-        }
+        Xform::Matrix scaleMatrix = Xform::Matrix::eye();
+        for (int i=0; i<std::min(pixdimLength,3); i++)
+            scaleMatrix(i,i) = pixdim[i] / origPixdim[i];
         
         if (image->qform_code > 0)
-        {
-            mat33 prod = nifti_mat33_mul(scaleMatrix, internal::topLeftCorner(image->qto_xyz));
-            for (int i=0; i<3; i++)
-            {
-                for (int j=0; j<3; j++)
-                    image->qto_xyz.m[i][j] = prod.m[i][j];
-            }
-            image->qto_ijk = nifti_mat44_inverse(image->qto_xyz);
-            nifti_mat44_to_quatern(image->qto_xyz, &image->quatern_b, &image->quatern_c, &image->quatern_d, &image->qoffset_x, &image->qoffset_y, &image->qoffset_z, NULL, NULL, NULL, &image->qfac);
-        }
-        
+            this->qform() = qform().matrix() * scaleMatrix;
         if (image->sform_code > 0)
-        {
-            mat33 prod = nifti_mat33_mul(scaleMatrix, internal::topLeftCorner(image->sto_xyz));
-            for (int i=0; i<3; i++)
-            {
-                for (int j=0; j<3; j++)
-                    image->sto_xyz.m[i][j] = prod.m[i][j];
-            }
-            image->sto_ijk = nifti_mat44_inverse(image->sto_xyz);
-        }
+            this->sform() = sform().matrix() * scaleMatrix;
     }
 }
 
@@ -1009,24 +1244,29 @@ inline void NiftiImage::setPixunits (const std::vector<std::string> &pixunits)
     }
 }
 
-inline NiftiImage & NiftiImage::rescale (const std::vector<float> &scales)
+inline NiftiImage & NiftiImage::rescale (const std::vector<pixdim_t> &scales)
 {
-    std::vector<float> pixdim(image->pixdim+1, image->pixdim+4);
+    std::vector<pixdim_t> pixdim(image->pixdim+1, image->pixdim+4);
     
     for (int i=0; i<std::min(3, int(scales.size())); i++)
     {
         if (scales[i] != 1.0)
         {
             pixdim[i] /= scales[i];
-            image->dim[i+1] = static_cast<int>(std::floor(image->dim[i+1] * scales[i]));
+            image->dim[i+1] = static_cast<dim_t>(std::floor(image->dim[i+1] * scales[i]));
         }
     }
     
     updatePixdim(pixdim);
-    nifti_update_dims_from_array(image);
     
     // Data vector is now the wrong size, so drop it
+#if RNIFTI_NIFTILIB_VERSION == 1
+    nifti_update_dims_from_array(image);
     nifti_image_unload(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti2_update_dims_from_array(image);
+    nifti2_image_unload(image);
+#endif
     
     image->scl_slope = 0.0;
     image->scl_inter = 0.0;
@@ -1052,51 +1292,52 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         throw std::runtime_error("Each canonical axis should be used exactly once");
     
     const int codes[3] = { icode, jcode, kcode };
-    const mat44 native = this->xform();
+    const Xform native = this->xform();
     
     // Calculate the origin, which requires inverting the current xform
     // Here we use a simplified formula that exploits blockwise inversion and the nature of xforms
-    internal::vec3 origin;
-    for (int i=0; i<3; i++)
-        origin.v[i] = native.m[i][3];
-    origin = -internal::matrixVectorProduct(nifti_mat33_inverse(internal::topLeftCorner(native)), origin);
+    Xform::Vector3 origin = -(native.submatrix().inverse() * native.offset());
     
     // Create a target xform (rotation matrix only)
-    mat33 target;
+    Xform::Submatrix target;
     for (int j=0; j<3; j++)
     {
         for (int i=0; i<3; i++)
-            target.m[i][j] = 0.0;
+            target(i,j) = 0.0;
         
         switch (codes[j])
         {
-            case NIFTI_L2R: target.m[0][j] =  1.0; break;
-            case NIFTI_R2L: target.m[0][j] = -1.0; break;
-            case NIFTI_P2A: target.m[1][j] =  1.0; break;
-            case NIFTI_A2P: target.m[1][j] = -1.0; break;
-            case NIFTI_I2S: target.m[2][j] =  1.0; break;
-            case NIFTI_S2I: target.m[2][j] = -1.0; break;
+            case NIFTI_L2R: target(0,j) =  1.0; break;
+            case NIFTI_R2L: target(0,j) = -1.0; break;
+            case NIFTI_P2A: target(1,j) =  1.0; break;
+            case NIFTI_A2P: target(1,j) = -1.0; break;
+            case NIFTI_I2S: target(2,j) =  1.0; break;
+            case NIFTI_S2I: target(2,j) = -1.0; break;
         }
     }
     
     // Extract (inverse of) canonical axis matrix from native xform
     int nicode, njcode, nkcode;
+#if RNIFTI_NIFTILIB_VERSION == 1
     nifti_mat44_to_orientation(native, &nicode, &njcode, &nkcode);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti_dmat44_to_orientation(native, &nicode, &njcode, &nkcode);
+#endif
     int ncodes[3] = { nicode, njcode, nkcode };
-    mat33 nativeAxesTransposed;
+    Xform::Submatrix nativeAxesTransposed;
     for (int i=0; i<3; i++)
     {
         for (int j=0; j<3; j++)
-            nativeAxesTransposed.m[i][j] = 0.0;
+            nativeAxesTransposed(i,j) = 0.0;
 
         switch (ncodes[i])
         {
-            case NIFTI_L2R: nativeAxesTransposed.m[i][0] =  1.0; break;
-            case NIFTI_R2L: nativeAxesTransposed.m[i][0] = -1.0; break;
-            case NIFTI_P2A: nativeAxesTransposed.m[i][1] =  1.0; break;
-            case NIFTI_A2P: nativeAxesTransposed.m[i][1] = -1.0; break;
-            case NIFTI_I2S: nativeAxesTransposed.m[i][2] =  1.0; break;
-            case NIFTI_S2I: nativeAxesTransposed.m[i][2] = -1.0; break;
+            case NIFTI_L2R: nativeAxesTransposed(i,0) =  1.0; break;
+            case NIFTI_R2L: nativeAxesTransposed(i,0) = -1.0; break;
+            case NIFTI_P2A: nativeAxesTransposed(i,1) =  1.0; break;
+            case NIFTI_A2P: nativeAxesTransposed(i,1) = -1.0; break;
+            case NIFTI_I2S: nativeAxesTransposed(i,2) =  1.0; break;
+            case NIFTI_S2I: nativeAxesTransposed(i,2) = -1.0; break;
         }
     }
     
@@ -1107,28 +1348,29 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
     // The transform is t(approx_old_xform) %*% target_xform
     // The new xform is old_xform %*% transform
     // NB: "transform" is really 4x4, but the last row is simple and the last column is filled below
-    mat33 transform = nifti_mat33_mul(nativeAxesTransposed, target);
-    mat44 result;
+    const Xform::Matrix &nativeMat = native.matrix();
+    Xform::Submatrix transform = nativeAxesTransposed * target;
+    Xform::Matrix result;
     for (int i=0; i<4; i++)
     {
         for (int j=0; j<3; j++)
-            result.m[i][j] = native.m[i][0] * transform.m[0][j] + native.m[i][1] * transform.m[1][j] + native.m[i][2] * transform.m[2][j];
+            result(i,j) = nativeMat(i,0) * transform(0,j) + nativeMat(i,1) * transform(1,j) + nativeMat(i,2) * transform(2,j);
         
-        result.m[3][i] = i == 3 ? 1.0 : 0.0;
+        result(3,i) = (i == 3 ? 1.0 : 0.0);
     }
     
     // Extract the mapping between dimensions and the signs
     // These vectors are all indexed in the target space, except "revsigns"
-    int locs[3], signs[3], newdim[3], revsigns[3];
-    float newpixdim[3];
+    dim_t locs[3], signs[3], newdim[3], revsigns[3];
+    pixdim_t newpixdim[3];
     double maxes[3] = { R_NegInf, R_NegInf, R_NegInf };
-    internal::vec3 offset;
+    Xform::Vector3 offset;
     for (int j=0; j<3; j++)
     {
         // Find the largest absolute value in each column, which gives the old dimension corresponding to each new dimension
         for (int i=0; i<3; i++)
         {
-            const double value = static_cast<double>(transform.m[i][j]);
+            const double value = static_cast<double>(transform(i,j));
             if (fabs(value) > maxes[j])
             {
                 maxes[j] = fabs(value);
@@ -1146,28 +1388,21 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         
         // Flip and/or permute the origin
         if (signs[j] < 0)
-            offset.v[j] = image->dim[locs[j]+1] - origin.v[locs[j]] - 1.0;
+            offset[j] = image->dim[locs[j]+1] - origin[locs[j]] - 1.0;
         else
-            offset.v[j] = origin.v[locs[j]];
+            offset[j] = origin[locs[j]];
     }
     
     // Convert the origin back to an xform offset and insert it
-    offset = -internal::matrixVectorProduct(internal::topLeftCorner(result), offset);
+    offset = -(Xform(result).submatrix() * offset);
     for (int i=0; i<3; i++)
-        result.m[i][3] = offset.v[i];
+        result(i,3) = offset[i];
     
     // Update the xforms with nonzero codes
     if (image->qform_code > 0)
-    {
-        image->qto_xyz = result;
-        image->qto_ijk = nifti_mat44_inverse(image->qto_xyz);
-        nifti_mat44_to_quatern(image->qto_xyz, &image->quatern_b, &image->quatern_c, &image->quatern_d, &image->qoffset_x, &image->qoffset_y, &image->qoffset_z, NULL, NULL, NULL, &image->qfac);
-    }
+        this->qform() = result;
     if (image->sform_code > 0)
-    {
-        image->sto_xyz = result;
-        image->sto_ijk = nifti_mat44_inverse(image->sto_xyz);
-    }
+        this->sform() = result;
     
     // Calculate strides: the step in target space associated with each dimension in source space
     ptrdiff_t strides[3];
@@ -1179,7 +1414,7 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
     if (image->data != NULL)
     {    
         size_t volSize = size_t(image->nx * image->ny * image->nz);
-        size_t nVolumes = std::max(size_t(1), image->nvox / volSize);
+        size_t nVolumes = std::max(size_t(1), size_t(image->nvox) / volSize);
         
         const NiftiImageData oldData = this->data();
         NiftiImageData newData(oldData);
@@ -1196,12 +1431,12 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         NiftiImageData::Iterator it = oldData.begin();
         for (size_t v=0; v<nVolumes; v++)
         {
-            for (int k=0; k<image->nz; k++)
+            for (dim_t k=0; k<image->nz; k++)
             {
                 ptrdiff_t offset = k * strides[2] * revsigns[2];
-                for (int j=0; j<image->ny; j++)
+                for (dim_t j=0; j<image->ny; j++)
                 {
-                    for (int i=0; i<image->nx; i++)
+                    for (dim_t i=0; i<image->nx; i++)
                     {
                         newData[volStart + offset] = *it++;
                         offset += strides[0] * revsigns[0];
@@ -1215,16 +1450,16 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
         // Vector data needs to be reoriented to match the xform
         if (image->intent_code == NIFTI_INTENT_VECTOR && image->dim[5] == 3)
         {
-            internal::vec3 oldVec;
+            Xform::Vector3 oldVec;
             const size_t supervolSize = volSize * image->nt;
             NiftiImageData::Iterator it = newData.begin();
             for (size_t i=0; i<supervolSize; i++, ++it)
             {
                 for (int j=0; j<3; j++)
-                    oldVec.v[j] = double(*(it + j*supervolSize));
-                const internal::vec3 newVec = internal::matrixVectorProduct(transform, oldVec);
+                    oldVec[j] = double(*(it + j*supervolSize));
+                const Xform::Vector3 newVec = transform * oldVec;
                 for (int j=0; j<3; j++)
-                    *(it + j*supervolSize) = newVec.v[j];
+                    *(it + j*supervolSize) = newVec[j];
             }
         }
         
@@ -1236,7 +1471,11 @@ inline NiftiImage & NiftiImage::reorient (const int icode, const int jcode, cons
     // NB: Old dims are used above, so this must happen last
     std::copy(newdim, newdim+3, image->dim+1);
     std::copy(newpixdim, newpixdim+3, image->pixdim+1);
+#if RNIFTI_NIFTILIB_VERSION == 1
     nifti_update_dims_from_array(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti2_update_dims_from_array(image);
+#endif
     
     return *this;
 }
@@ -1276,13 +1515,21 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
         nifti_1_header *header = NULL;
         if (this->isNull())
         {
+#if RNIFTI_NIFTILIB_VERSION == 1
             header = nifti_make_new_header(NULL, DT_FLOAT64);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            header = nifti_make_new_n1_header(NULL, DT_FLOAT64);
+#endif
             internal::updateHeader(header, list, true);
         }
         else
         {
             header = (nifti_1_header *) calloc(1, sizeof(nifti_1_header));
+#if RNIFTI_NIFTILIB_VERSION == 1
             *header = nifti_convert_nim2nhdr(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            nifti_convert_nim2n1hdr(image, header);
+#endif
             internal::updateHeader(header, list, true);
         }
         
@@ -1291,7 +1538,11 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
             // Retain the data pointer, but otherwise overwrite the stored object with one created from the header
             // The file names can't be preserved through the round-trip, so free them
             void *dataPtr = image->data;
+#if RNIFTI_NIFTILIB_VERSION == 1
             nifti_image *tempImage = nifti_convert_nhdr2nim(*header, NULL);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            nifti_image *tempImage = nifti_convert_n1hdr2nim(*header, NULL);
+#endif
             
             if (image->fname != NULL)
                 free(image->fname);
@@ -1303,7 +1554,11 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
             image->ext_list = NULL;
             image->data = dataPtr;
             
+#if RNIFTI_NIFTILIB_VERSION == 1
             nifti_image_free(tempImage);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            nifti2_image_free(tempImage);
+#endif
             free(header);
         }
     }
@@ -1320,7 +1575,7 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
     
         if (object.hasAttribute("pixdim"))
         {
-            const std::vector<float> pixdimVector = object.attr("pixdim");
+            const std::vector<pixdim_t> pixdimVector = object.attr("pixdim");
             updatePixdim(pixdimVector);
         }
     
@@ -1330,8 +1585,12 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
             setPixunits(pixunitsVector);
         }
     
-        // This NIfTI-1 library function clobbers dim[0] if the last dimension is unitary; we undo that here
+        // This library function clobbers dim[0] if the last dimension is unitary; we undo that here
+#if RNIFTI_NIFTILIB_VERSION == 1
         nifti_update_dims_from_array(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti2_update_dims_from_array(image);
+#endif
         image->dim[0] = image->ndim = nDims;
     
         image->datatype = NiftiImage::sexpTypeToNiftiType(object.sexp_type());
@@ -1341,10 +1600,15 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
             image->datatype = (channels == 4 ? DT_RGBA32 : DT_RGB24);
         }
         nifti_datatype_sizes(image->datatype, &image->nbyper, NULL);
-    
+        
+#if RNIFTI_NIFTILIB_VERSION == 1
         nifti_image_unload(image);
-    
         const size_t dataSize = nifti_get_volsize(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti2_image_unload(image);
+        const size_t dataSize = nifti2_get_volsize(image);
+#endif
+        
         image->data = calloc(1, dataSize);
         if (image->datatype == DT_INT32 || image->datatype == DT_RGBA32)
             memcpy(image->data, INTEGER(object), dataSize);
@@ -1364,40 +1628,23 @@ inline NiftiImage & NiftiImage::update (const Rcpp::RObject &object)
 
 #endif // USING_R
 
-inline mat44 NiftiImage::xform (const bool preferQuaternion) const
+inline const NiftiImage::Xform NiftiImage::xform (const bool preferQuaternion) const
 {
     if (image == NULL)
-    {
-        mat44 matrix;
-        for (int i=0; i<4; i++)
-        {
-            for (int j=0; j<4; j++)
-                matrix.m[i][j] = 0.0;
-        }
-        return matrix;
-    }
+        return Xform();
     else if (image->qform_code <= 0 && image->sform_code <= 0)
     {
         // No qform or sform so use pixdim (NB: other software may assume differently)
-        mat44 matrix;
-        for (int i=0; i<4; i++)
-        {
-            for (int j=0; j<4; j++)
-            {
-                if (i != j)
-                    matrix.m[i][j] = 0.0;
-                else if (i == 3)
-                    matrix.m[3][3] = 1.0;
-                else
-                    matrix.m[i][j] = (image->pixdim[i+1]==0.0 ? 1.0 : image->pixdim[i+1]);
-            }
-        }
-        return matrix;
+        Xform::Matrix matrix;
+        for (int i=0; i<3; i++)
+            matrix(i,i) = (image->pixdim[i+1]==0.0 ? 1.0 : image->pixdim[i+1]);
+        matrix(3,3) = 1.0;
+        return Xform(matrix);
     }
     else if ((preferQuaternion && image->qform_code > 0) || image->sform_code <= 0)
-        return image->qto_xyz;
+        return qform();
     else
-        return image->sto_xyz;
+        return sform();
 }
 
 template <typename TargetType>
@@ -1464,7 +1711,11 @@ inline NiftiImage & NiftiImage::replaceData (const NiftiImageData &data)
         return *this;
     else if (data.isEmpty())
     {
+#if RNIFTI_NIFTILIB_VERSION == 1
         nifti_image_unload(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        nifti2_image_unload(image);
+#endif
         return *this;
     }
     else if (data.length() != image->nvox)
@@ -1472,24 +1723,28 @@ inline NiftiImage & NiftiImage::replaceData (const NiftiImageData &data)
     
     // Copy the data
     NiftiImageData copy = data;
+#if RNIFTI_NIFTILIB_VERSION == 1
     nifti_image_unload(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    nifti2_image_unload(image);
+#endif
     image->data = copy.blob();
     image->datatype = copy.datatype();
-    image->scl_slope = static_cast<float>(copy.slope);
-    image->scl_inter = static_cast<float>(copy.intercept);
+    image->scl_slope = static_cast<scale_t>(copy.slope);
+    image->scl_inter = static_cast<scale_t>(copy.intercept);
     nifti_datatype_sizes(image->datatype, &image->nbyper, &image->swapsize);
     
     double min, max;
     copy.minmax(&min, &max);
-    image->cal_min = static_cast<float>(min);
-    image->cal_max = static_cast<float>(max);
+    image->cal_min = static_cast<scale_t>(min);
+    image->cal_max = static_cast<scale_t>(max);
     
     copy.disown();
     
     return *this;
 }
 
-inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const int datatype) const
+inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const int datatype, const int filetype) const
 {
     const bool changingDatatype = (datatype != DT_NONE && !this->isNull() && datatype != image->datatype);
     
@@ -1498,18 +1753,27 @@ inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string 
     
     if (changingDatatype)
         imageToWrite.changeDatatype(datatype, true);
+    if (filetype >= 0 && filetype <= NIFTI_MAX_FTYPE)
+        imageToWrite->nifti_type = filetype;
     
+#if RNIFTI_NIFTILIB_VERSION == 1
     const int status = nifti_set_filenames(imageToWrite, internal::stringToPath(fileName), false, true);
     if (status != 0)
         throw std::runtime_error("Failed to set filenames for NIfTI object");
     nifti_image_write(imageToWrite);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+    const int status = nifti2_set_filenames(imageToWrite, internal::stringToPath(fileName), false, true);
+    if (status != 0)
+        throw std::runtime_error("Failed to set filenames for NIfTI object");
+    nifti2_image_write(imageToWrite);
+#endif
     
     return std::pair<std::string,std::string>(std::string(imageToWrite->fname), std::string(imageToWrite->iname));
 }
 
-inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const std::string &datatype) const
+inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const std::string &datatype, const int filetype) const
 {
-    return toFile(fileName, internal::stringToDatatype(datatype));
+    return toFile(fileName, internal::stringToDatatype(datatype), filetype);
 }
 
 #ifdef USING_R
@@ -1563,71 +1827,6 @@ inline Rcpp::RObject NiftiImage::toPointer (const std::string label) const
 inline Rcpp::RObject NiftiImage::toArrayOrPointer (const bool internal, const std::string label) const
 {
     return (internal ? toPointer(label) : toArray());
-}
-
-inline Rcpp::RObject NiftiImage::headerToList () const
-{
-    if (this->image == NULL)
-        return Rcpp::RObject();
-    
-    nifti_1_header header = nifti_convert_nim2nhdr(this->image);
-    Rcpp::List result;
-    
-    result["sizeof_hdr"] = header.sizeof_hdr;
-    
-    result["dim_info"] = int(header.dim_info);
-    result["dim"] = std::vector<short>(header.dim, header.dim+8);
-    
-    result["intent_p1"] = header.intent_p1;
-    result["intent_p2"] = header.intent_p2;
-    result["intent_p3"] = header.intent_p3;
-    result["intent_code"] = header.intent_code;
-    
-    result["datatype"] = header.datatype;
-    result["bitpix"] = header.bitpix;
-    
-    result["slice_start"] = header.slice_start;
-    result["pixdim"] = std::vector<float>(header.pixdim, header.pixdim+8);
-    result["vox_offset"] = header.vox_offset;
-    result["scl_slope"] = header.scl_slope;
-    result["scl_inter"] = header.scl_inter;
-    result["slice_end"] = header.slice_end;
-    result["slice_code"] = int(header.slice_code);
-    result["xyzt_units"] = int(header.xyzt_units);
-    result["cal_max"] = header.cal_max;
-    result["cal_min"] = header.cal_min;
-    result["slice_duration"] = header.slice_duration;
-    result["toffset"] = header.toffset;
-    result["descrip"] = std::string(header.descrip, 80);
-    result["aux_file"] = std::string(header.aux_file, 24);
-    
-    result["qform_code"] = header.qform_code;
-    result["sform_code"] = header.sform_code;
-    result["quatern_b"] = header.quatern_b;
-    result["quatern_c"] = header.quatern_c;
-    result["quatern_d"] = header.quatern_d;
-    result["qoffset_x"] = header.qoffset_x;
-    result["qoffset_y"] = header.qoffset_y;
-    result["qoffset_z"] = header.qoffset_z;
-    result["srow_x"] = std::vector<float>(header.srow_x, header.srow_x+4);
-    result["srow_y"] = std::vector<float>(header.srow_y, header.srow_y+4);
-    result["srow_z"] = std::vector<float>(header.srow_z, header.srow_z+4);
-    
-    result["intent_name"] = std::string(header.intent_name, 16);
-    result["magic"] = std::string(header.magic, 4);
-    
-    Rcpp::List strings;
-    strings["datatype"] = nifti_datatype_string(header.datatype);
-    strings["intent_code"] = nifti_intent_string(header.intent_code);
-    strings["qform_code"] = nifti_xform_string(header.qform_code);
-    strings["sform_code"] = nifti_xform_string(header.sform_code);
-    strings["slice_code"] = nifti_slice_string(header.slice_code);
-    
-    internal::addAttributes(result, *this, false, false);
-    result.attr("class") = Rcpp::CharacterVector::create("niftiHeader");
-    result.attr("strings") = strings;
-    
-    return result;
 }
 
 #endif // USING_R

@@ -4,16 +4,21 @@
 \alias{asNifti}
 \alias{retrieveNifti}
 \alias{updateNifti}
+\alias{asNifti.default}
 \title{Create or modify an NIfTI image object}
 \usage{
-asNifti(image, reference = NULL, datatype = "auto", internal = NA)
+asNifti(x, reference = NULL, ...)
+
+\method{asNifti}{default}(x, reference = NULL, datatype = "auto", internal = NA, ...)
 }
 \arguments{
-\item{image}{Any suitable object (see Details).}
+\item{x}{Any suitable object (see Details).}
 
 \item{reference}{An image, or a named list of NIfTI-1 properties like that
 produced by \code{\link{niftiHeader}}. The default of \code{NULL} will
 have no effect.}
+
+\item{...}{Additional parameters to methods.}
 
 \item{datatype}{The NIfTI datatype to use within the internal image. The
 default, \code{"auto"} uses the R type. Other possibilities are

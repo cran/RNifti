@@ -1,48 +1,21 @@
-#include <R_ext/Rdynload.h>
 #include <Rcpp.h>
 
-#include "niftilib/nifti1_io.h"
-#include "RNifti/NiftiImage.h"
+#define RNIFTI_NIFTILIB_VERSION 2
+#include "RNifti.h"
 
 using namespace Rcpp;
 using namespace RNifti;
 
 typedef std::vector<int> int_vector;
-typedef std::vector<float> float_vector;
+typedef std::vector<NiftiImage::dim_t> dim_vector;
+typedef std::vector<NiftiImage::pixdim_t> pixdim_vector;
 
-::mat44 matrixToXform (const SEXP _matrix, bool *valid = NULL)
+inline bool isXformMatrix (const SEXP object)
 {
-    ::mat44 xform;
-    
-    if (valid != NULL)
-        *valid = false;
-    
-    if (Rf_isMatrix(_matrix))
-    {
-        NumericMatrix matrix(_matrix);
-        if (matrix.cols() == 4 && matrix.rows() == 4)
-        {
-            if (valid != NULL)
-                *valid = true;
-            for (int i=0; i<4; i++)
-            {
-                for (int j=0; j<4; j++)
-                    xform.m[i][j] = static_cast<float>(matrix(i,j));
-            }
-        }
-    }
-    return xform;
-}
-
-NumericMatrix xformToMatrix (const ::mat44 xform)
-{
-    NumericMatrix matrix(4,4);
-    for (int i=0; i<4; i++)
-    {
-        for (int j=0; j<4; j++)
-            matrix(i,j) = static_cast<double>(xform.m[i][j]);
-    }
-    return matrix;
+    if (!Rf_isMatrix(object))
+        return false;
+    NumericMatrix matrix(object);
+    return (matrix.cols() == 4 && matrix.rows() == 4);
 }
 
 inline unsigned char clip (const double &value)
@@ -123,7 +96,7 @@ BEGIN_RCPP
     const NiftiImage image(_object, true, true);
     const NiftiImageData data = image.data();
     const int_vector channels = as<int_vector>(_channels);
-    int_vector dim = image.dim();
+    dim_vector dim = image.dim();
     dim.push_back(channels.size());
     
     const size_t len = image.nVoxels();
@@ -189,7 +162,7 @@ BEGIN_RCPP
     }
     else
     {
-        std::vector<int> volumes;
+        dim_vector volumes;
         IntegerVector volumesR(_volumes);
         for (int i=0; i<volumesR.length(); i++)
             volumes.push_back(volumesR[i] - 1);
@@ -199,41 +172,121 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP writeNifti (SEXP _image, SEXP _file, SEXP _datatype)
+RcppExport SEXP writeNifti (SEXP _image, SEXP _file, SEXP _datatype, SEXP _filetype)
 {
 BEGIN_RCPP
     const NiftiImage image(_image, true, true);
-    const std::pair<std::string,std::string> paths = image.toFile(as<std::string>(_file), as<std::string>(_datatype));
+    const std::string filetypeString = as<std::string>(_filetype);
+    int filetype = NIFTI_FTYPE_NIFTI1_1;
+    if (filetypeString == "analyze")
+        filetype = NIFTI_FTYPE_ANALYZE;
+    else if (filetypeString == "nifti2")
+        filetype = NIFTI_FTYPE_NIFTI2_1;
+    const std::pair<std::string,std::string> paths = image.toFile(as<std::string>(_file), as<std::string>(_datatype), filetype);
     return CharacterVector::create(Named("header")=paths.first, Named("image")=paths.second);
 END_RCPP
+}
+
+template <typename Header>
+static List niftiHeaderToList (const Header &header)
+{
+    List result;
+    
+    result["sizeof_hdr"] = header.sizeof_hdr;
+    
+    result["dim_info"] = int(header.dim_info);
+    result["dim"] = std::vector<int>(header.dim, header.dim+8);
+    
+    result["intent_p1"] = header.intent_p1;
+    result["intent_p2"] = header.intent_p2;
+    result["intent_p3"] = header.intent_p3;
+    result["intent_code"] = header.intent_code;
+    
+    result["datatype"] = header.datatype;
+    result["bitpix"] = header.bitpix;
+    
+    result["slice_start"] = header.slice_start;
+    result["pixdim"] = std::vector<double>(header.pixdim, header.pixdim+8);
+    result["vox_offset"] = header.vox_offset;
+    result["scl_slope"] = header.scl_slope;
+    result["scl_inter"] = header.scl_inter;
+    result["slice_end"] = header.slice_end;
+    result["slice_code"] = int(header.slice_code);
+    result["xyzt_units"] = int(header.xyzt_units);
+    result["cal_max"] = header.cal_max;
+    result["cal_min"] = header.cal_min;
+    result["slice_duration"] = header.slice_duration;
+    result["toffset"] = header.toffset;
+    result["descrip"] = std::string(header.descrip, 80);
+    result["aux_file"] = std::string(header.aux_file, 24);
+    
+    result["qform_code"] = header.qform_code;
+    result["sform_code"] = header.sform_code;
+    result["quatern_b"] = header.quatern_b;
+    result["quatern_c"] = header.quatern_c;
+    result["quatern_d"] = header.quatern_d;
+    result["qoffset_x"] = header.qoffset_x;
+    result["qoffset_y"] = header.qoffset_y;
+    result["qoffset_z"] = header.qoffset_z;
+    result["srow_x"] = std::vector<float>(header.srow_x, header.srow_x+4);
+    result["srow_y"] = std::vector<float>(header.srow_y, header.srow_y+4);
+    result["srow_z"] = std::vector<float>(header.srow_z, header.srow_z+4);
+    
+    result["intent_name"] = std::string(header.intent_name, 16);
+    result["magic"] = std::string(header.magic, 4);
+    
+    List strings;
+    strings["datatype"] = nifti_datatype_string(header.datatype);
+    strings["intent_code"] = nifti_intent_string(header.intent_code);
+    strings["qform_code"] = nifti_xform_string(header.qform_code);
+    strings["sform_code"] = nifti_xform_string(header.sform_code);
+    strings["slice_code"] = nifti_slice_string(header.slice_code);
+    
+    result.attr("class") = CharacterVector::create("niftiHeader");
+    result.attr("strings") = strings;
+    
+    return result;
 }
 
 RcppExport SEXP niftiHeader (SEXP _image)
 {
 BEGIN_RCPP
     const NiftiImage image(_image, false, true);
-    return image.headerToList();
+    if (image.isNull())
+        return R_NilValue;
+    
+    const int version = (image->nifti_type == NIFTI_FTYPE_NIFTI2_1 || image->nifti_type == NIFTI_FTYPE_NIFTI2_2) ? 2 : 1;
+    List result;
+    
+    if (version == 1)
+    {
+        nifti_1_header header;
+        nifti_convert_nim2n1hdr(image, &header);
+        result = niftiHeaderToList(header);
+    }
+    else if (version == 2)
+    {
+        nifti_2_header header;
+        nifti_convert_nim2n2hdr(image, &header);
+        result = niftiHeaderToList(header);
+    }
+    
+    RNifti::internal::addAttributes(result, image, false, false);
+    result.attr("version") = version;
+    
+    return result;
 END_RCPP
 }
 
 RcppExport SEXP analyzeHeader (SEXP _image)
 {
 BEGIN_RCPP
+    const NiftiImage image(_image, false, true);
+    if (image.isNull())
+        return R_NilValue;
+    
     nifti_1_header header;
-    
-    if (Rf_isString(_image))
-    {
-        const std::string path = as<std::string>(_image);
-        nifti_1_header *ptr = nifti_read_header(path.c_str(), NULL, true);
-        header = *ptr;
-        free(ptr);
-    }
-    else
-    {
-        const NiftiImage image(_image, false, true);
-        header = nifti_convert_nim2nhdr(image);
-    }
-    
+    nifti_convert_nim2n1hdr(image, &header);
     nifti_analyze75 *analyze = (nifti_analyze75 *) &header;
     List result;
     
@@ -290,17 +343,13 @@ END_RCPP
 RcppExport SEXP getXform (SEXP _image, SEXP _preferQuaternion)
 {
 BEGIN_RCPP
-    bool isMatrix = false;
-    matrixToXform(_image, &isMatrix);
-    
-    if (isMatrix)
+    if (isXformMatrix(_image))
         return _image;
     else
     {
         const NiftiImage image(_image, false, true);
         const bool preferQuaternion = as<bool>(_preferQuaternion);
-        ::mat44 xform = image.xform(preferQuaternion);
-        NumericMatrix matrix = xformToMatrix(xform);
+        NumericMatrix matrix = wrap(image.xform(preferQuaternion).matrix());
         if (image.isNull())
             matrix.attr("code") = 0;
         else
@@ -314,10 +363,7 @@ RcppExport SEXP setXform (SEXP _image, SEXP _matrix, SEXP _isQform)
 {
 BEGIN_RCPP
     NumericMatrix matrix(_matrix);
-    if (matrix.cols() != 4 || matrix.rows() != 4)
-        throw std::runtime_error("Specified affine matrix does not have dimensions of 4x4");
-    
-    ::mat44 xform = matrixToXform(_matrix);
+    NiftiImage::Xform xform(_matrix);
     
     int code = -1;
     if (!Rf_isNull(matrix.attr("code")))
@@ -330,18 +376,18 @@ BEGIN_RCPP
         if (MAYBE_SHARED(_image))
             image = Rf_duplicate(image);
         
-        float qbcd[3], qxyz[3], dxyz[3], qfac;
-        nifti_mat44_to_quatern(xform, &qbcd[0], &qbcd[1], &qbcd[2], &qxyz[0], &qxyz[1], &qxyz[2], &dxyz[0], &dxyz[1], &dxyz[2], &qfac);
+        double qbcd[3], qxyz[3], dxyz[3], qfac;
+        nifti_dmat44_to_quatern(xform, &qbcd[0], &qbcd[1], &qbcd[2], &qxyz[0], &qxyz[1], &qxyz[2], &dxyz[0], &dxyz[1], &dxyz[2], &qfac);
         
         if (as<bool>(_isQform))
         {
-            *REAL(image["quatern_b"]) = static_cast<double>(qbcd[0]);
-            *REAL(image["quatern_c"]) = static_cast<double>(qbcd[1]);
-            *REAL(image["quatern_d"]) = static_cast<double>(qbcd[2]);
-            *REAL(image["qoffset_x"]) = static_cast<double>(qxyz[0]);
-            *REAL(image["qoffset_y"]) = static_cast<double>(qxyz[1]);
-            *REAL(image["qoffset_z"]) = static_cast<double>(qxyz[2]);
-            REAL(image["pixdim"])[0] = static_cast<double>(qfac);
+            *REAL(image["quatern_b"]) = qbcd[0];
+            *REAL(image["quatern_c"]) = qbcd[1];
+            *REAL(image["quatern_d"]) = qbcd[2];
+            *REAL(image["qoffset_x"]) = qxyz[0];
+            *REAL(image["qoffset_y"]) = qxyz[1];
+            *REAL(image["qoffset_z"]) = qxyz[2];
+            REAL(image["pixdim"])[0] = qfac;
             if (code >= 0)
                 *INTEGER(image["qform_code"]) = code;
         }
@@ -359,7 +405,7 @@ BEGIN_RCPP
         
         const int dimensionality = INTEGER(image["dim"])[0];
         for (int i=0; i<std::min(3,dimensionality); i++)
-            REAL(image["pixdim"])[i+1] = static_cast<double>(dxyz[i]);
+            REAL(image["pixdim"])[i+1] = dxyz[i];
         
         return image;
     }
@@ -372,18 +418,13 @@ BEGIN_RCPP
         {
             if (as<bool>(_isQform))
             {
-                image->qto_xyz = xform;
-                image->qto_ijk = nifti_mat44_inverse(image->qto_xyz);
-                nifti_mat44_to_quatern(image->qto_xyz, &image->quatern_b, &image->quatern_c, &image->quatern_d, &image->qoffset_x, &image->qoffset_y, &image->qoffset_z, NULL, NULL, NULL, &image->qfac);
-            
+                image.qform() = xform;
                 if (code >= 0)
                     image->qform_code = code;
             }
             else
             {
-                image->sto_xyz = xform;
-                image->sto_ijk = nifti_mat44_inverse(image->sto_xyz);
-            
+                image.sform() = xform;
                 if (code >= 0)
                     image->sform_code = code;
             }
@@ -399,15 +440,13 @@ RcppExport SEXP getOrientation (SEXP _image, SEXP _preferQuaternion)
 {
 BEGIN_RCPP
     std::string orientation;
-    bool isMatrix = false;
-    ::mat44 xform = matrixToXform(_image, &isMatrix);
     
-    if (isMatrix)
-        orientation = NiftiImage::xformToString(xform);
+    if (isXformMatrix(_image))
+        orientation = NiftiImage::Xform(_image).orientation();
     else
     {
         const NiftiImage image(_image, false, true);
-        orientation = NiftiImage::xformToString(image.xform(as<bool>(_preferQuaternion)));
+        orientation = image.xform(as<bool>(_preferQuaternion)).orientation();
     }
     
     return wrap(orientation);
@@ -417,23 +456,18 @@ END_RCPP
 RcppExport SEXP setOrientation (SEXP _image, SEXP _axes)
 {
 BEGIN_RCPP
-    bool isMatrix = false;
-    ::mat44 xform = matrixToXform(_image, &isMatrix);
-    
-    if (isMatrix)
+    if (isXformMatrix(_image))
     {
         // Create an empty image for temporary purposes
-        nifti_image *ptr = nifti_make_new_nim(NULL, DT_UNSIGNED_CHAR, 0);
+        nifti2_image *ptr = nifti2_make_new_nim(NULL, DT_UNSIGNED_CHAR, 0);
         NiftiImage image(ptr);
         
         // Set the qform matrix
-        image->qto_xyz = xform;
-        image->qto_ijk = nifti_mat44_inverse(image->qto_xyz);
-        nifti_mat44_to_quatern(image->qto_xyz, &image->quatern_b, &image->quatern_c, &image->quatern_d, &image->qoffset_x, &image->qoffset_y, &image->qoffset_z, NULL, NULL, NULL, &image->qfac);
+        image.qform() = NiftiImage::Xform(_image);
         image->qform_code = 2;
         
         image.reorient(as<std::string>(_axes));
-        return xformToMatrix(image->qto_xyz);
+        return image.qform().matrix();
     }
     else
     {
@@ -447,25 +481,13 @@ END_RCPP
 RcppExport SEXP getRotation (SEXP _image, SEXP _preferQuaternion)
 {
 BEGIN_RCPP
-    ::mat33 rotation;
-    bool isMatrix = false;
-    ::mat44 xform = matrixToXform(_image, &isMatrix);
-    
-    if (isMatrix)
-        rotation = NiftiImage::xformToRotation(xform);
+    if (isXformMatrix(_image))
+        return NiftiImage::Xform(_image).rotation();
     else
     {
         const NiftiImage image(_image, false, true);
-        rotation = NiftiImage::xformToRotation(image.xform(as<bool>(_preferQuaternion)));
+        return image.xform(as<bool>(_preferQuaternion)).rotation();
     }
-    
-    NumericMatrix matrix(3,3);
-    for (int i=0; i<3; i++)
-    {
-        for (int j=0; j<3; j++)
-            matrix(i,j) = static_cast<double>(rotation.m[i][j]);
-    }
-    return matrix;
 END_RCPP
 }
 
@@ -478,7 +500,7 @@ BEGIN_RCPP
     else
     {
         std::ostringstream imageString, dataString;
-        imageString << (const nifti_image *) image;
+        imageString << (const nifti2_image *) image;
         dataString << image->data;
         return CharacterVector::create(Named("image")=imageString.str(), Named("data")=dataString.str());
     }
@@ -542,17 +564,17 @@ BEGIN_RCPP
     else
     {
         const List indices(_indices);
-        const std::vector<int> dim = image.dim();
+        const dim_vector dim = image.dim();
         const int nDims = indices.length();
         std::vector<size_t> strides(nDims);
-        std::vector<int_vector> locs(nDims);
+        std::vector<dim_vector> locs(nDims);
         int_vector sizes(nDims);
         std::vector<size_t> cumulativeSizes(nDims);
         size_t count = 1;
         for (int i=0; i<nDims; i++)
         {
             strides[i] = (i == 0 ? 1 : strides[i-1] * dim[i-1]);
-            locs[i] = as<int_vector>(indices[i]);
+            locs[i] = as<dim_vector>(indices[i]);
             sizes[i] = locs[i].size();
             cumulativeSizes[i] = (i == 0 ? 1 : cumulativeSizes[i-1] * sizes[i-1]);
             count *= sizes[i];
@@ -604,7 +626,7 @@ RcppExport SEXP rescaleImage (SEXP _image, SEXP _scales)
 {
 BEGIN_RCPP
     NiftiImage image(_image);
-    image.rescale(as<float_vector>(_scales));
+    image.rescale(as<pixdim_vector>(_scales));
     return image.toPointer("NIfTI image");
 END_RCPP
 }
@@ -617,16 +639,24 @@ BEGIN_RCPP
 END_RCPP
 }
 
+RcppExport SEXP setDebugLevel (SEXP _level)
+{
+BEGIN_RCPP
+    nifti_set_debug_level(as<int>(_level));
+    return R_NilValue;
+END_RCPP
+}
+
 extern "C" {
 
-static R_CallMethodDef callMethods[] = {
+R_CallMethodDef callMethods[] = {
     { "packRgb",        (DL_FUNC) &packRgb,         3 },
     { "rgbToStrings",   (DL_FUNC) &rgbToStrings,    1 },
     { "unpackRgb",      (DL_FUNC) &unpackRgb,       2 },
     { "asNifti",        (DL_FUNC) &asNifti,         4 },
     { "niftiVersion",   (DL_FUNC) &niftiVersion,    1 },
     { "readNifti",      (DL_FUNC) &readNifti,       3 },
-    { "writeNifti",     (DL_FUNC) &writeNifti,      3 },
+    { "writeNifti",     (DL_FUNC) &writeNifti,      4 },
     { "niftiHeader",    (DL_FUNC) &niftiHeader,     1 },
     { "analyzeHeader",  (DL_FUNC) &analyzeHeader,   1 },
     { "getXform",       (DL_FUNC) &getXform,        2 },
@@ -640,50 +670,8 @@ static R_CallMethodDef callMethods[] = {
     { "indexList",      (DL_FUNC) &indexList,       2 },
     { "rescaleImage",   (DL_FUNC) &rescaleImage,    2 },
     { "pointerToArray", (DL_FUNC) &pointerToArray,  1 },
+    { "setDebugLevel",  (DL_FUNC) &setDebugLevel,   1 },
     { NULL, NULL, 0 }
 };
-
-void R_init_RNifti (DllInfo *info)
-{
-    R_registerRoutines(info, NULL, callMethods, NULL, NULL);
-    R_useDynamicSymbols(info, FALSE);
-    
-    R_RegisterCCallable("RNifti",   "nii_make_new_header",  (DL_FUNC) &nifti_make_new_header);
-    R_RegisterCCallable("RNifti",   "nii_make_new_nim",     (DL_FUNC) &nifti_make_new_nim);
-    R_RegisterCCallable("RNifti",   "nii_convert_nhdr2nim", (DL_FUNC) &nifti_convert_nhdr2nim);
-    R_RegisterCCallable("RNifti",   "nii_convert_nim2nhdr", (DL_FUNC) &nifti_convert_nim2nhdr);
-    R_RegisterCCallable("RNifti",   "nii_copy_nim_info",    (DL_FUNC) &nifti_copy_nim_info);
-    R_RegisterCCallable("RNifti",   "nii_copy_extensions",  (DL_FUNC) &nifti_copy_extensions);
-    R_RegisterCCallable("RNifti",   "nii_image_unload",     (DL_FUNC) &nifti_image_unload);
-    R_RegisterCCallable("RNifti",   "nii_image_free",       (DL_FUNC) &nifti_image_free);
-    
-    R_RegisterCCallable("RNifti",   "nii_is_inttype",       (DL_FUNC) &nifti_is_inttype);
-    R_RegisterCCallable("RNifti",   "nii_datatype_sizes",   (DL_FUNC) &nifti_datatype_sizes);
-    R_RegisterCCallable("RNifti",   "nii_datatype_string",  (DL_FUNC) &nifti_datatype_string);
-    R_RegisterCCallable("RNifti",   "nii_units_string",     (DL_FUNC) &nifti_units_string);
-    R_RegisterCCallable("RNifti",   "nii_get_volsize",      (DL_FUNC) &nifti_get_volsize);
-    R_RegisterCCallable("RNifti",   "nii_update_dims_from_array", (DL_FUNC) &nifti_update_dims_from_array);
-    
-    R_RegisterCCallable("RNifti",   "nii_strdup",           (DL_FUNC) &nifti_strdup);
-    R_RegisterCCallable("RNifti",   "nii_set_filenames",    (DL_FUNC) &nifti_set_filenames);
-    R_RegisterCCallable("RNifti",   "nii_image_read",       (DL_FUNC) &nifti_image_read);
-    R_RegisterCCallable("RNifti",   "nii_image_write",      (DL_FUNC) &nifti_image_write);
-    
-    R_RegisterCCallable("RNifti",   "nii_mat33_rownorm",    (DL_FUNC) &nifti_mat33_rownorm);
-    R_RegisterCCallable("RNifti",   "nii_mat33_colnorm",    (DL_FUNC) &nifti_mat33_colnorm);
-    R_RegisterCCallable("RNifti",   "nii_mat33_determ",     (DL_FUNC) &nifti_mat33_determ);
-    R_RegisterCCallable("RNifti",   "nii_mat33_inverse",    (DL_FUNC) &nifti_mat33_inverse);
-    R_RegisterCCallable("RNifti",   "nii_mat33_mul",        (DL_FUNC) &nifti_mat33_mul);
-    R_RegisterCCallable("RNifti",   "nii_mat33_polar",      (DL_FUNC) &nifti_mat33_polar);
-    R_RegisterCCallable("RNifti",   "nii_mat44_inverse",    (DL_FUNC) &nifti_mat44_inverse);
-    R_RegisterCCallable("RNifti",   "nii_mat44_to_quatern", (DL_FUNC) &nifti_mat44_to_quatern);
-    R_RegisterCCallable("RNifti",   "nii_quatern_to_mat44", (DL_FUNC) &nifti_quatern_to_mat44);
-    R_RegisterCCallable("RNifti",   "nii_mat44_to_orientation", (DL_FUNC) &nifti_mat44_to_orientation);
-    
-    R_RegisterCCallable("RNifti",   "nii_swap_2bytes",      (DL_FUNC) &nifti_swap_2bytes);
-    R_RegisterCCallable("RNifti",   "nii_swap_4bytes",      (DL_FUNC) &nifti_swap_4bytes);
-    R_RegisterCCallable("RNifti",   "nii_swap_8bytes",      (DL_FUNC) &nifti_swap_8bytes);
-    R_RegisterCCallable("RNifti",   "nii_swap_16bytes",     (DL_FUNC) &nifti_swap_16bytes);
-}
 
 }

@@ -1,7 +1,7 @@
-#' Read a NIfTI-1 format file
+#' Read NIfTI or ANALYZE format files
 #' 
-#' This function reads one or more NIfTI-1 or ANALYZE-7.5 files into R, using
-#' the standard NIfTI-1 C library.
+#' This function reads one or more NIfTI-1, NIfTI-2 or ANALYZE-7.5 files into
+#' R, using the standard NIfTI C library.
 #' 
 #' @param file A character vector of file names.
 #' @param internal Logical value. If \code{FALSE} (the default), an array
@@ -34,8 +34,9 @@
 #' @author Jon Clayden <code@@clayden.org>
 #' @seealso \code{\link{writeNifti}}
 #' @references The NIfTI-1 standard (\url{http://www.nitrc.org/docman/view.php/26/64/nifti1.h}).
-#' @export
-readNifti <- function (file, internal = FALSE, volumes = NULL)
+#' @aliases readAnalyze
+#' @export readNifti readAnalyze
+readNifti <- readAnalyze <- function (file, internal = FALSE, volumes = NULL)
 {
     if (!is.character(file))
         stop("File name(s) must be specified in a character vector")
@@ -47,10 +48,10 @@ readNifti <- function (file, internal = FALSE, volumes = NULL)
         .Call("readNifti", file, internal, volumes, PACKAGE="RNifti")
 }
 
-#' Write a NIfTI-1 format file
+#' Write a NIfTI or ANALYZE format file
 #' 
-#' This function writes an image to NIfTI-1 format, using the standard NIfTI-1
-#' C library.
+#' These functions write an image to NIfTI-1, NIfTI-2 or ANALYZE-7.5 format,
+#' using the standard NIfTI C library.
 #' 
 #' @param image An image, in any acceptable form (see \code{\link{asNifti}}).
 #' @param file A character string containing a file name.
@@ -61,6 +62,16 @@ readNifti <- function (file, internal = FALSE, volumes = NULL)
 #'   original datatype. Other possibilities are \code{"float"}, \code{"int16"},
 #'   etc., which may be preferred to reduce file size. However, no checks are
 #'   done to ensure that the coercion maintains precision.
+#' @param version An integer (1 or 2) giving the NIfTI file format version to
+#'   use. Version 2 is usually only needed for very large images or where
+#'   metadata needs to be stored with high precision. The types available for
+#'   storing the pixel data are the same in both cases.
+#' @return An invisible, named character vector giving the image and header
+#'   file names written to.
+#' 
+#' @note The ANALYZE-7.5 file format is a legacy format and use of it is not
+#'   recommended, except for compatibility. In particular, the format does
+#'   not reliably specify the spatial orientation of the image.
 #' 
 #' @examples
 #' \dontrun{writeNifti(im, "image.nii.gz", datatype="float")}
@@ -69,12 +80,16 @@ readNifti <- function (file, internal = FALSE, volumes = NULL)
 #' @seealso \code{\link{readNifti}}, \code{\link{asNifti}}
 #' @references The NIfTI-1 standard (\url{http://www.nitrc.org/docman/view.php/26/64/nifti1.h}).
 #' @export
-writeNifti <- function (image, file, template = NULL, datatype = "auto")
+writeNifti <- function (image, file, template = NULL, datatype = "auto", version = 1)
 {
-    if (is.array(image) && !is.null(template))
-        image <- asNifti(image, template)
-    
-    invisible(.Call("writeNifti", image, file, tolower(datatype), PACKAGE="RNifti"))
+    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), switch(version,"nifti1","nifti2"), PACKAGE="RNifti"))
+}
+
+#' @rdname writeNifti
+#' @export
+writeAnalyze <- function (image, file, template = NULL, datatype = "auto")
+{
+    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), "analyze", PACKAGE="RNifti"))
 }
 
 #' Create or modify an NIfTI image object
@@ -117,10 +132,11 @@ writeNifti <- function (image, file, template = NULL, datatype = "auto")
 #' interfaces to this function, which behave like the pre-existing functions of
 #' the same names. They may be removed in future.
 #' 
-#' @param image Any suitable object (see Details).
+#' @param x Any suitable object (see Details).
 #' @param reference An image, or a named list of NIfTI-1 properties like that
 #'   produced by \code{\link{niftiHeader}}. The default of \code{NULL} will
 #'   have no effect.
+#' @param ... Additional parameters to methods.
 #' @param datatype The NIfTI datatype to use within the internal image. The
 #'   default, \code{"auto"} uses the R type. Other possibilities are
 #'   \code{"float"}, \code{"int16"}, etc., which may be preferred to reduce
@@ -149,9 +165,16 @@ writeNifti <- function (image, file, template = NULL, datatype = "auto")
 #'   \code{\link{dim.internalImage}}, \code{\link{pixdim}}, \code{\link{xform}}
 #' @aliases retrieveNifti updateNifti
 #' @export
-asNifti <- function (image, reference = NULL, datatype = "auto", internal = NA)
+asNifti <- function (x, reference = NULL, ...)
 {
-    .Call("asNifti", image, reference, datatype, internal, PACKAGE="RNifti")
+    UseMethod("asNifti")
+}
+
+#' @rdname asNifti
+#' @export
+asNifti.default <- function (x, reference = NULL, datatype = "auto", internal = NA, ...)
+{
+    .Call("asNifti", x, reference, datatype, internal, PACKAGE="RNifti")
 }
 
 #' @export
@@ -208,21 +231,21 @@ updateNifti <- function (image, template = NULL, datatype = "auto")
 #' @export niftiHeader dumpNifti
 niftiHeader <- dumpNifti <- function (image = list())
 {
-    .Call("niftiHeader", image, PACKAGE="RNifti")
+    .Call("niftiHeader", asNifti(image,internal=TRUE), PACKAGE="RNifti")
 }
 
 #' @rdname niftiHeader
 #' @export
 analyzeHeader <- function (image = list())
 {
-    .Call("analyzeHeader", image, PACKAGE="RNifti")
+    .Call("analyzeHeader", asNifti(image,internal=TRUE), PACKAGE="RNifti")
 }
 
 #' @rdname niftiHeader
 #' @export
 print.niftiHeader <- function (x, ...)
 {
-    cat("NIfTI-1 header\n")
+    cat(paste0("NIfTI-", attr(x,"version"), " header\n"))
     widths <- nchar(names(x), "width")
     maxWidth <- max(widths)
     names <- names(x)
@@ -289,4 +312,9 @@ hasData <- function (image)
 rescaleNifti <- function (image, scales)
 {
     .Call("rescaleImage", image, scales, PACKAGE="RNifti")
+}
+
+niftiDebug <- function (level = 1L)
+{
+    invisible(.Call("setDebugLevel", level, PACKAGE="RNifti"))
 }
