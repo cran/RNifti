@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['valuetype_89',['ValueType',['../a00014.html',1,'RNifti::rgba32_t']]],
-  ['vector_90',['Vector',['../a00046.html',1,'RNifti']]],
-  ['volume_91',['volume',['../a00054.html#ac416f242d48fe60da4dc5d8f4ad04c20',1,'RNifti::NiftiImage::volume(const int i) const'],['../a00054.html#ab7dc18d35249622b5dc43171cceee9fe',1,'RNifti::NiftiImage::volume(const int i)']]]
+  ['unscaled_117',['unscaled',['../a00018.html#a47d192d3accab25b40be5c6bf8590e79',1,'RNifti::NiftiImageData']]],
+  ['update_118',['update',['../a00054.html#a6889fce012f57b40440edea9f1b4876d',1,'RNifti::NiftiImage']]],
+  ['updatepixdim_119',['updatePixdim',['../a00054.html#a34d21039968f6b21430ca762855c1525',1,'RNifti::NiftiImage']]]
 ];

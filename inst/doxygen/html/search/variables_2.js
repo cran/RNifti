@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['handler_187',['handler',['../a00018.html#a4120de271d40a233d8d017919ca72b92',1,'RNifti::NiftiImageData']]]
+  ['elements_247',['elements',['../a00050.html#a1126a924ca630a11a03de23b1c39b696',1,'RNifti::SquareMatrix']]]
 ];

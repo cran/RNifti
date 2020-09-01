@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['refcount_192',['refCount',['../a00054.html#a8e1b092d6237daa18abb08ac966a3c80',1,'RNifti::NiftiImage']]]
+  ['mat_252',['mat',['../a00062.html#aa2dd4abb114bfdd406ebf7810a498724',1,'RNifti::NiftiImage::Xform']]]
 ];

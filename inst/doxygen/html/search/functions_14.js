@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['_7eniftiimage_181',['~NiftiImage',['../a00054.html#a5ec15c8ad46eedb6498d007202389e0c',1,'RNifti::NiftiImage']]],
-  ['_7eniftiimagedata_182',['~NiftiImageData',['../a00018.html#ab5b71eeb251a8eb35dc4b9378164d9cf',1,'RNifti::NiftiImageData']]]
+  ['xform_240',['Xform',['../a00062.html#a3c75f2069555e08709b9c391919a6176',1,'RNifti::NiftiImage::Xform::Xform()'],['../a00062.html#a64e9dad1c2b269f65cf5d09819840700',1,'RNifti::NiftiImage::Xform::Xform(const Matrix &amp;source)'],['../a00062.html#ad919f4721c609fa94f50b0d0b1b70aa1',1,'RNifti::NiftiImage::Xform::Xform(const Matrix::NativeType &amp;source)'],['../a00062.html#a865db346e7f3f8550614ea96bf180611',1,'RNifti::NiftiImage::Xform::Xform(Matrix::NativeType &amp;source)'],['../a00062.html#a459cf249667fd7aea312adf27e147308',1,'RNifti::NiftiImage::Xform::Xform(Matrix::NativeType &amp;source, Matrix::NativeType &amp;inverse, Element *qparams=NULL)'],['../a00062.html#ab7be06f637179abdb1df373f34f990e9',1,'RNifti::NiftiImage::Xform::Xform(SEXP source)'],['../a00054.html#a301cbd1ceefd62b73c787f00f83c42a7',1,'RNifti::NiftiImage::xform()']]]
 ];

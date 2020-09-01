@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['slope_193',['slope',['../a00018.html#a5d74d8ab82313364907a532494efbb6c',1,'RNifti::NiftiImageData']]]
+  ['owner_253',['owner',['../a00018.html#ac3b3b9f91252f9f0c11f5b249d728fdb',1,'RNifti::NiftiImageData']]]
 ];
