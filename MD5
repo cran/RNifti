@@ -1,8 +1,8 @@
-2d1d1555fac33864a6de90d2e331a264 *DESCRIPTION
+968e2b5281046df12767b803fd2f53e8 *DESCRIPTION
 74a0ff7e04391b2decc2530d004415e2 *NAMESPACE
-07cacda91080cef7c8426b3c8e087140 *NEWS
+caf79db7cb2b796a5f7ce4b725350127 *NEWS
 a45b6c1b24ab18fa3818f783bf93a84c *R/image.R
-abd9ec27206912c5c00bc7a7a5c81b12 *R/nifti.R
+b8bc4307d66cefe592b8a9ad96416bb0 *R/nifti.R
 72db1a838f07adbc2f834ec36dd21f32 *R/rgb.R
 7b690373ee13f331e6659aacf969dc6e *R/viewer.R
 580a59bb1730404509b7474fe98dc515 *R/xform.R
@@ -11,7 +11,7 @@ b124afa5fde405603d4eeed05855ce8a *README.md
 ccc527aa65600337ed5e3f832c0eb443 *cleanup
 e1101581081b97d9032639597016d3d8 *cleanup.win
 fb6ea71c285b8fc5d86bf53c4e104348 *inst/COPYRIGHTS
-a7e96858ad6ed4e29f649880782b2663 *inst/doxygen/html/a00002_source.html
+2ebfeba005ec8b1634cf65fae7e0a8fc *inst/doxygen/html/a00002_source.html
 72abe795a749ed69b54ecfddd30215bd *inst/doxygen/html/a00005.html
 95f6adc9896dd7f87360348537b28670 *inst/doxygen/html/a00007.html
 cf6fed34ff9c18ff8ce11dd90794781d *inst/doxygen/html/a00010.html
@@ -237,14 +237,14 @@ e8547f4bc7609814adfbab6fe9c1c288 *inst/extdata/example_4d.nii.gz
 c26818fcb45b7b7a9d4154d5487230e1 *inst/extdata/example_rgb.nii.gz
 b728068e45de91a56b8cb5080b4011af *inst/include/RNifti.h
 c0feb4f4aa21931450d2c534220863bf *inst/include/RNifti/NiftiImage.h
-7e91c2e9039fe7f70a5df9de32b0704e *inst/include/RNifti/NiftiImage_impl.h
+cb62fa5d2ed6e90658e5ab2991c86625 *inst/include/RNifti/NiftiImage_impl.h
 f80b24dc1fac288092c6758dfe0b36f3 *inst/include/RNifti/NiftiImage_matrix.h
 f930d3f1090d3f9bb525ebc114e3410d *inst/include/RNifti/NiftiImage_print.h
 69e56821d56e7a6108ee5988ce0a2c3f *inst/include/RNiftiAPI.h
 5c27ee344ffd98bbc8247bb98eab5707 *inst/include/niftilib/nifti1.h
 9a6a58369ce27d727dc52498fef35daa *inst/include/niftilib/nifti1_io.h
 1e78c6fe8591ba1351347637b471aa4f *inst/include/niftilib/nifti2.h
-2861c2e7fe3479c9c4d586aff5e0e234 *inst/include/niftilib/nifti2_image.h
+4e373c9b99d88d0019a2ea3da10e7330 *inst/include/niftilib/nifti2_image.h
 e615e7d15cdfedb088a57c0f9a96830a *inst/include/niftilib/nifti2_io.h
 5407d4c937d8f925665f71aad35c12fa *inst/include/zlib/zconf.h
 1c128a3b0a0fd84c1224754170ee7756 *inst/include/zlib/zlib.h
@@ -255,7 +255,7 @@ be666b838be37f46f6f12bffc58768c9 *man/defaultInfoPanel.Rd
 1ea9e61a79acb5999d259813d2213c0f *man/indexing.Rd
 b83a9399244f6c7de4ddf7775daf8a36 *man/internalImage.Rd
 42120833f7c250a1d4e56c649ef40ed4 *man/ndim.Rd
-71a20678c97a58ea6ad80b8f33c06350 *man/niftiHeader.Rd
+ff7d3f5d924132a39e58b38a873296cc *man/niftiHeader.Rd
 7406628fc63edbf979ad6348dda8b9a7 *man/niftiVersion.Rd
 20c181da31a24521475e83eff3927f90 *man/pixdim.Rd
 c4fb3c3a1550dc104ea306501ecc9d4d *man/readNifti.Rd
@@ -265,7 +265,7 @@ dfef27c9fc33dc654e3e1cb2cdbb1464 *man/view.Rd
 bb7df94a6bf72bd5767a8eb8ea0edeb4 *man/writeNifti.Rd
 ef7c82d995b02f924d7688e3f8fb4e32 *man/xform.Rd
 9d2704d4194479c0fccb8e99cd6e2bf3 *src/Makevars
-96cc3c57f87f0a45d062cdb0b3b65d77 *src/main.cpp
+9f6ef01e1e4737cff68777fc06b7eead *src/main.cpp
 c81e351ab126e75cad16a564535b2871 *src/niftilib/nifti1_io.c
 5a2d0ecd54ef988fd31926230c8d1e04 *src/niftilib/nifti2_io.c
 ae3bbb54820e1d49fb90cbba222e973f *src/zlib/adler32.c
@@ -295,7 +295,7 @@ de91a463004fd5b944c3d37eab0c1794 *src/zlib/zutil.h
 d18badd3a7a7ec165dfec9dd050f2b94 *src/znzlib/znzlib.c
 5b232f6f0c0a89b39f22120a70ba5ebe *src/zzz.c
 d4a2abbb6217055b8900c8d86ac6aa53 *tests/testthat.R
-fa2c15149de69e2273528dcf5992a8c2 *tests/testthat/test-05-nifti.R
+f4b543d1aa3fae3dc2b107bf59b5f066 *tests/testthat/test-05-nifti.R
 e579e7a6810ac9d06b2fb6275d220083 *tests/testthat/test-08-composite.R
 699f654cbb6052138b7f5980a55a2401 *tests/testthat/test-10-xform.R
 8928abaad465c47750de83a17ab2c1f6 *tests/testthat/test-12-viewer.R
