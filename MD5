@@ -1,6 +1,6 @@
-968e2b5281046df12767b803fd2f53e8 *DESCRIPTION
+c74830b5eb78aa1d68794d2d2fc6ca6a *DESCRIPTION
 74a0ff7e04391b2decc2530d004415e2 *NAMESPACE
-caf79db7cb2b796a5f7ce4b725350127 *NEWS
+6513cf533e75d077a843bbea8cd7daf2 *NEWS
 a45b6c1b24ab18fa3818f783bf93a84c *R/image.R
 b8bc4307d66cefe592b8a9ad96416bb0 *R/nifti.R
 72db1a838f07adbc2f834ec36dd21f32 *R/rgb.R
@@ -240,7 +240,7 @@ c0feb4f4aa21931450d2c534220863bf *inst/include/RNifti/NiftiImage.h
 cb62fa5d2ed6e90658e5ab2991c86625 *inst/include/RNifti/NiftiImage_impl.h
 f80b24dc1fac288092c6758dfe0b36f3 *inst/include/RNifti/NiftiImage_matrix.h
 f930d3f1090d3f9bb525ebc114e3410d *inst/include/RNifti/NiftiImage_print.h
-69e56821d56e7a6108ee5988ce0a2c3f *inst/include/RNiftiAPI.h
+d8897fb9ebdbd1834b7b4d702aea244c *inst/include/RNiftiAPI.h
 5c27ee344ffd98bbc8247bb98eab5707 *inst/include/niftilib/nifti1.h
 9a6a58369ce27d727dc52498fef35daa *inst/include/niftilib/nifti1_io.h
 1e78c6fe8591ba1351347637b471aa4f *inst/include/niftilib/nifti2.h
