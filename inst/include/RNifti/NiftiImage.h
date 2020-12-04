@@ -22,6 +22,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <list>
 #include <complex>
 #include <stdexcept>
 #include <algorithm>
@@ -923,6 +924,150 @@ public:
     };
     
     /**
+     * Inner class wrapping a NIfTI extension, a weakly-specified standard for attaching additional
+     * metadata to NIfTI-1 and NIfTI-2 images.
+    **/
+    class Extension
+    {
+    protected:
+        nifti1_extension *ext;          /**< The wrapped extension structure */
+        
+        /**
+         * Copy an existing \c nifti1_extension structure into the object
+         * @param source A pointer to a \c nifti1_extension
+        **/
+        void copy (const nifti1_extension *source);
+        
+        /**
+         * Copy the specified data buffer into the object
+         * @param data An array of data
+         * @param length The number of elements in \c data
+         * @param code The extension code to associate with the data
+        **/
+        template <typename SourceType>
+        void copy (const SourceType *data, const size_t length, const int code);
+        
+    public:
+        /**
+         * Default constructor, wrapping \c NULL
+        **/
+        Extension ()
+            : ext(NULL) {}
+        
+        /**
+         * Initialise from an existing \c nifti1_extension (which is used by both NIfTI-1 and
+         * NIfTI-2 images), optionally copying the contents
+         * @param extension A pointer to a \c nifti1_extension
+         * @param copy If \c true, the contents of the extension are copied; otherwise the pointer
+         * is wrapped directly
+        **/
+        Extension (nifti1_extension * const extension, const bool copy = false)
+        {
+            if (!copy || extension == NULL)
+                this->ext = extension;
+            else
+                this->copy(extension);
+        }
+        
+        /**
+         * Copy constructor
+         * @param source Another \c Extension object
+        **/
+        Extension (const Extension &source)
+        {
+            copy(source.ext);
+        }
+        
+        /**
+         * Construct the object from its constituent parts
+         * @param data An array of data
+         * @param length The number of elements in \c data
+         * @param code The extension code to associate with the data
+        **/
+        template <typename SourceType>
+        Extension (const SourceType *data, const size_t length, const int code)
+        {
+            copy(data, length, code);
+        }
+        
+#ifdef USING_R
+        /**
+         * Construct the object from an atomic R object, copying the data into a new extension
+         * @param source An R object, which should be of an atomic type (integer, double,
+         * character, etc.)
+         * @param code The extension code to associate with the data. If -1, the default, a
+         * \c code attribute will be used, if available
+        **/
+        Extension (SEXP source, int code = -1)
+        {
+            const Rcpp::RObject object(source);
+            if (code == -1 && object.hasAttribute("code"))
+                code = Rcpp::as<int>(object.attr("code"));
+            
+            switch (object.sexp_type())
+            {
+                case RAWSXP:  copy(RAW(source), Rf_length(source), code);       break;
+                case REALSXP: copy(REAL(source), Rf_length(source), code);      break;
+                case CPLXSXP: copy(COMPLEX(source), Rf_length(source), code);   break;
+                case INTSXP:  copy(INTEGER(source), Rf_length(source), code);   break;
+                case LGLSXP:  copy(LOGICAL(source), Rf_length(source), code);   break;
+                case STRSXP:
+                {
+                    if (Rf_length(source) > 1)
+                        Rf_warning("Character vector elements after the first will not be stored in a NIfTI extension");
+                    const char *string = CHAR(STRING_ELT(source, 0));
+                    copy(string, strlen(string), code);
+                    break;
+                }
+                default: Rf_error("Unable to convert SEXP type %d to NIfTI extension", object.sexp_type());
+            }
+        }
+#endif
+        
+        /**
+         * Return the code associated with the extension
+         * @return An integer code giving the relevant code, or -1 if the extension is \c NULL
+        **/
+        int code () const { return (ext == NULL ? -1 : ext->ecode); }
+        
+        /**
+         * Return the data blob associated with the extension
+         * @return The data, as a byte array
+        **/
+        const char * data () const { return (ext == NULL ? NULL : ext->edata); }
+        
+        /**
+         * Return the length of the data array
+         * @return The length of the data array, in bytes
+        **/
+        size_t length () const { return (ext == NULL || ext->esize < 8 ? 0 : size_t(ext->esize - 8)); }
+        
+        /**
+         * Return the length of the data array
+         * @return The length of the data array, in bytes
+        **/
+        size_t size () const { return (ext == NULL || ext->esize < 8 ? 0 : size_t(ext->esize - 8)); }
+        
+#ifdef USING_R
+        /**
+         * \c SEXP cast operator, which converts to R's raw vector type
+        **/
+        operator SEXP () const
+        {
+            if (ext == NULL || ext->esize < 8)
+                return R_NilValue;
+            
+            const int length = ext->esize - 8;
+            Rcpp::RawVector result(length);
+            const Rbyte *source = (const Rbyte *) ext->edata;
+            std::copy(source, source+length, result.begin());
+            result.attr("code") = ext->ecode;
+            return result;
+        }
+#endif
+    };
+    
+    /**
      * Inner class representing an xform matrix, which indicates the orientation and other spatial
      * properties of an image. Specifically, an xform is an affine transformation in 3D space,
      * representing the conversion from the image's coordinate system to canonical "real-world"
@@ -1664,6 +1809,79 @@ public:
      * @return An integer giving the number of voxels in the image
     **/
     size_t nVoxels () const { return (image == NULL ? 0 : image->nvox); }
+    
+    /**
+     * Return the number of extensions associated with the image
+     * @return An integer giving the number of extensions
+    **/
+    int nExtensions () const { return (image == NULL ? 0 : image->num_ext); }
+    
+    /**
+     * Return a list of the extensions associated with the image
+     * @param code Integer specifying the code corresponding to the extensions required. If -1, the
+     * default, all extensions are returned. There may be more than one extension with a given code
+     * @return A list of \ref Extension objects
+    **/
+    std::list<Extension> extensions (const int code = -1) const
+    {
+        if (image == NULL)
+            return std::list<Extension>();
+        else
+        {
+            std::list<Extension> result;
+            for (int i=0; i<image->num_ext; i++)
+            {
+                const Extension extension(image->ext_list + i);
+                if (code < 0 || code == extension.code())
+                    result.push_back(extension);
+            }
+            return result;
+        }
+    }
+    
+    /**
+     * Add an extension to the image
+     * @param The new image extension, an \ref Extension object
+     * @return Self, with the extension appended
+    **/
+    NiftiImage & addExtension (const Extension &extension)
+    {
+        if (image != NULL)
+#if RNIFTI_NIFTILIB_VERSION == 1
+            nifti_add_extension(image, extension.data(), int(extension.length()), extension.code());
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            nifti2_add_extension(image, extension.data(), int(extension.length()), extension.code());
+#endif
+        return *this;
+    }
+    
+    /**
+     * Replace all extensions with new ones
+     * @param A list of \ref Extension objects
+     * @return Self, with the new extensions attached
+    **/
+    NiftiImage & replaceExtensions (const std::list<Extension> extensions)
+    {
+        dropExtensions();
+        for (std::list<Extension>::const_iterator it=extensions.begin(); it!=extensions.end(); ++it)
+            addExtension(*it);
+        return *this;
+    }
+    
+    /**
+     * Remove any extensions from the image
+     * @return Self, with extensions removed
+    **/
+    NiftiImage & dropExtensions ()
+    {
+        if (image != NULL)
+#if RNIFTI_NIFTILIB_VERSION == 1
+            nifti_free_extensions(image);
+#elif RNIFTI_NIFTILIB_VERSION == 2
+            nifti2_free_extensions(image);
+#endif
+        return *this;
+    }
     
     /**
      * Write the image to a NIfTI-1 file

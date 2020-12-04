@@ -88,8 +88,11 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00058.html">Block</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inner class referring to a subset of an image.  <a href="a00058.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00062.html">Xform</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inner class representing an xform matrix, which indicates the orientation and other spatial properties of an image.  <a href="a00062.html#details">More...</a><br /></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00062.html">Extension</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inner class wrapping a NIfTI extension, a weakly-specified standard for attaching additional metadata to NIfTI-1 and NIfTI-2 images.  <a href="a00062.html#details">More...</a><br /></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00066.html">Xform</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inner class representing an xform matrix, which indicates the orientation and other spatial properties of an image.  <a href="a00066.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
@@ -213,19 +216,19 @@ nifti_image *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" h
 <tr class="memitem:a6889fce012f57b40440edea9f1b4876d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00054.html">NiftiImage</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a6889fce012f57b40440edea9f1b4876d">update</a> (const Rcpp::RObject &amp;object)</td></tr>
 <tr class="memdesc:a6889fce012f57b40440edea9f1b4876d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Update the image from an R array.  <a href="a00054.html#a6889fce012f57b40440edea9f1b4876d">More...</a><br /></td></tr>
 <tr class="separator:a6889fce012f57b40440edea9f1b4876d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a301cbd1ceefd62b73c787f00f83c42a7"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00062.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a301cbd1ceefd62b73c787f00f83c42a7">xform</a> (const bool preferQuaternion=true) const</td></tr>
+<tr class="memitem:a301cbd1ceefd62b73c787f00f83c42a7"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00066.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a301cbd1ceefd62b73c787f00f83c42a7">xform</a> (const bool preferQuaternion=true) const</td></tr>
 <tr class="memdesc:a301cbd1ceefd62b73c787f00f83c42a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Obtain an xform matrix, indicating the orientation of the image.  <a href="a00054.html#a301cbd1ceefd62b73c787f00f83c42a7">More...</a><br /></td></tr>
 <tr class="separator:a301cbd1ceefd62b73c787f00f83c42a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:affd1edd48bae1337ba68e7b02693237e"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00062.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#affd1edd48bae1337ba68e7b02693237e">qform</a> () const</td></tr>
+<tr class="memitem:affd1edd48bae1337ba68e7b02693237e"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00066.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#affd1edd48bae1337ba68e7b02693237e">qform</a> () const</td></tr>
 <tr class="memdesc:affd1edd48bae1337ba68e7b02693237e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Access the qform matrix.  <a href="a00054.html#affd1edd48bae1337ba68e7b02693237e">More...</a><br /></td></tr>
 <tr class="separator:affd1edd48bae1337ba68e7b02693237e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad86379711025f3f514a8647be82b7578"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00062.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#ad86379711025f3f514a8647be82b7578">qform</a> ()</td></tr>
+<tr class="memitem:ad86379711025f3f514a8647be82b7578"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00066.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#ad86379711025f3f514a8647be82b7578">qform</a> ()</td></tr>
 <tr class="memdesc:ad86379711025f3f514a8647be82b7578"><td class="mdescLeft">&#160;</td><td class="mdescRight">Access the qform matrix.  <a href="a00054.html#ad86379711025f3f514a8647be82b7578">More...</a><br /></td></tr>
 <tr class="separator:ad86379711025f3f514a8647be82b7578"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adbec8e0ad0fb64d31d01e47489c81b12"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00062.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#adbec8e0ad0fb64d31d01e47489c81b12">sform</a> () const</td></tr>
+<tr class="memitem:adbec8e0ad0fb64d31d01e47489c81b12"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="a00066.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#adbec8e0ad0fb64d31d01e47489c81b12">sform</a> () const</td></tr>
 <tr class="memdesc:adbec8e0ad0fb64d31d01e47489c81b12"><td class="mdescLeft">&#160;</td><td class="mdescRight">Access the sform matrix.  <a href="a00054.html#adbec8e0ad0fb64d31d01e47489c81b12">More...</a><br /></td></tr>
 <tr class="separator:adbec8e0ad0fb64d31d01e47489c81b12"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4e39a6a70a61c93ab868595d7da10bc4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00062.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a4e39a6a70a61c93ab868595d7da10bc4">sform</a> ()</td></tr>
+<tr class="memitem:a4e39a6a70a61c93ab868595d7da10bc4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00066.html">Xform</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a4e39a6a70a61c93ab868595d7da10bc4">sform</a> ()</td></tr>
 <tr class="memdesc:a4e39a6a70a61c93ab868595d7da10bc4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Access the sform matrix.  <a href="a00054.html#a4e39a6a70a61c93ab868595d7da10bc4">More...</a><br /></td></tr>
 <tr class="separator:a4e39a6a70a61c93ab868595d7da10bc4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7bae6d57bd23226253a93fa0b699af9f"><td class="memItemLeft" align="right" valign="top">dim_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a7bae6d57bd23226253a93fa0b699af9f">nBlocks</a> () const</td></tr>
@@ -255,6 +258,21 @@ nifti_image *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" h
 <tr class="memitem:ad19568a4f056b0035e7e9089fd7034a1"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#ad19568a4f056b0035e7e9089fd7034a1">nVoxels</a> () const</td></tr>
 <tr class="memdesc:ad19568a4f056b0035e7e9089fd7034a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the number of voxels in the image.  <a href="a00054.html#ad19568a4f056b0035e7e9089fd7034a1">More...</a><br /></td></tr>
 <tr class="separator:ad19568a4f056b0035e7e9089fd7034a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4894111df2c5957bf2398f73ff8e5b75"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a4894111df2c5957bf2398f73ff8e5b75">nExtensions</a> () const</td></tr>
+<tr class="memdesc:a4894111df2c5957bf2398f73ff8e5b75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return the number of extensions associated with the image.  <a href="a00054.html#a4894111df2c5957bf2398f73ff8e5b75">More...</a><br /></td></tr>
+<tr class="separator:a4894111df2c5957bf2398f73ff8e5b75"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad3ddb7a18ac15d9b2266a9b90bf1c7e4"><td class="memItemLeft" align="right" valign="top">std::list&lt; <a class="el" href="a00062.html">Extension</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#ad3ddb7a18ac15d9b2266a9b90bf1c7e4">extensions</a> (const int code=-1) const</td></tr>
+<tr class="memdesc:ad3ddb7a18ac15d9b2266a9b90bf1c7e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Return a list of the extensions associated with the image.  <a href="a00054.html#ad3ddb7a18ac15d9b2266a9b90bf1c7e4">More...</a><br /></td></tr>
+<tr class="separator:ad3ddb7a18ac15d9b2266a9b90bf1c7e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7090ca688b1ad41e9eb63a83e39dc5f3"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00054.html">NiftiImage</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a7090ca688b1ad41e9eb63a83e39dc5f3">addExtension</a> (const <a class="el" href="a00062.html">Extension</a> &amp;extension)</td></tr>
+<tr class="memdesc:a7090ca688b1ad41e9eb63a83e39dc5f3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Add an extension to the image.  <a href="a00054.html#a7090ca688b1ad41e9eb63a83e39dc5f3">More...</a><br /></td></tr>
+<tr class="separator:a7090ca688b1ad41e9eb63a83e39dc5f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a361e9ab4ddc32fca91b0fe336985a8cf"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00054.html">NiftiImage</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a361e9ab4ddc32fca91b0fe336985a8cf">replaceExtensions</a> (const std::list&lt; <a class="el" href="a00062.html">Extension</a> &gt; <a class="el" href="a00054.html#ad3ddb7a18ac15d9b2266a9b90bf1c7e4">extensions</a>)</td></tr>
+<tr class="memdesc:a361e9ab4ddc32fca91b0fe336985a8cf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replace all extensions with new ones.  <a href="a00054.html#a361e9ab4ddc32fca91b0fe336985a8cf">More...</a><br /></td></tr>
+<tr class="separator:a361e9ab4ddc32fca91b0fe336985a8cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aafe04778838023cbf6a75d00d21796c0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="a00054.html">NiftiImage</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#aafe04778838023cbf6a75d00d21796c0">dropExtensions</a> ()</td></tr>
+<tr class="memdesc:aafe04778838023cbf6a75d00d21796c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Remove any extensions from the image.  <a href="a00054.html#aafe04778838023cbf6a75d00d21796c0">More...</a><br /></td></tr>
+<tr class="separator:aafe04778838023cbf6a75d00d21796c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2a59e2235e72af12c8c9b3ed4950ecc6"><td class="memItemLeft" align="right" valign="top">std::pair&lt; std::string, std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00054.html#a2a59e2235e72af12c8c9b3ed4950ecc6">toFile</a> (const std::string fileName, const int datatype=DT_NONE, const int filetype=-1) const</td></tr>
 <tr class="memdesc:a2a59e2235e72af12c8c9b3ed4950ecc6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Write the image to a NIfTI-1 file.  <a href="a00054.html#a2a59e2235e72af12c8c9b3ed4950ecc6">More...</a><br /></td></tr>
 <tr class="separator:a2a59e2235e72af12c8c9b3ed4950ecc6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -735,6 +753,41 @@ int *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00
 
 </div>
 </div>
+<a id="a7090ca688b1ad41e9eb63a83e39dc5f3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7090ca688b1ad41e9eb63a83e39dc5f3">&#9670;&nbsp;</a></span>addExtension()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="a00054.html">NiftiImage</a>&amp; RNifti::NiftiImage::addExtension </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="a00062.html">Extension</a> &amp;&#160;</td>
+          <td class="paramname"><em>extension</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Add an extension to the image. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">The</td><td>new image extension, an <a class="el" href="a00062.html">Extension</a> object </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self, with the extension appended </dd></dl>
+
+</div>
+</div>
 <a id="a96a7386170f4146a834cbefe280b35be"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a96a7386170f4146a834cbefe280b35be">&#9670;&nbsp;</a></span>block() <span class="overload">[1/2]</span></h2>
 
@@ -1123,6 +1176,69 @@ int *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="a00
 
 <p>Drop the data from the image, retaining only the metadata. </p>
 <p>This method invalidates any <a class="el" href="a00018.html">NiftiImageData</a> objects referencing the old data </p><dl class="section return"><dt>Returns</dt><dd>Self, after dropping the data </dd></dl>
+
+</div>
+</div>
+<a id="aafe04778838023cbf6a75d00d21796c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aafe04778838023cbf6a75d00d21796c0">&#9670;&nbsp;</a></span>dropExtensions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="a00054.html">NiftiImage</a>&amp; RNifti::NiftiImage::dropExtensions </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Remove any extensions from the image. </p>
+<dl class="section return"><dt>Returns</dt><dd>Self, with extensions removed </dd></dl>
+
+</div>
+</div>
+<a id="ad3ddb7a18ac15d9b2266a9b90bf1c7e4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad3ddb7a18ac15d9b2266a9b90bf1c7e4">&#9670;&nbsp;</a></span>extensions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::list&lt;<a class="el" href="a00062.html">Extension</a>&gt; RNifti::NiftiImage::extensions </td>
+          <td>(</td>
+          <td class="paramtype">const int&#160;</td>
+          <td class="paramname"><em>code</em> = <code>-1</code></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return a list of the extensions associated with the image. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">code</td><td>Integer specifying the code corresponding to the extensions required. If -1, the default, all extensions are returned. There may be more than one extension with a given code </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A list of <a class="el" href="a00062.html">Extension</a> objects </dd></dl>
 
 </div>
 </div>
@@ -1603,6 +1719,34 @@ template&lt;typename TargetType &gt; </div>
 
 </div>
 </div>
+<a id="a4894111df2c5957bf2398f73ff8e5b75"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4894111df2c5957bf2398f73ff8e5b75">&#9670;&nbsp;</a></span>nExtensions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">int RNifti::NiftiImage::nExtensions </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Return the number of extensions associated with the image. </p>
+<dl class="section return"><dt>Returns</dt><dd>An integer giving the number of extensions </dd></dl>
+
+</div>
+</div>
 <a id="ad19568a4f056b0035e7e9089fd7034a1"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ad19568a4f056b0035e7e9089fd7034a1">&#9670;&nbsp;</a></span>nVoxels()</h2>
 
@@ -1737,7 +1881,7 @@ template&lt;typename TargetType &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="a00062.html">Xform</a> RNifti::NiftiImage::qform </td>
+          <td class="memname"><a class="el" href="a00066.html">Xform</a> RNifti::NiftiImage::qform </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -1751,7 +1895,7 @@ template&lt;typename TargetType &gt; </div>
 </div><div class="memdoc">
 
 <p>Access the qform matrix. </p>
-<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00062.html">Xform</a> object </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00066.html">Xform</a> object </dd></dl>
 
 </div>
 </div>
@@ -1765,7 +1909,7 @@ template&lt;typename TargetType &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">const <a class="el" href="a00062.html">Xform</a> RNifti::NiftiImage::qform </td>
+          <td class="memname">const <a class="el" href="a00066.html">Xform</a> RNifti::NiftiImage::qform </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td> const</td>
@@ -1779,7 +1923,7 @@ template&lt;typename TargetType &gt; </div>
 </div><div class="memdoc">
 
 <p>Access the qform matrix. </p>
-<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00062.html">Xform</a> object </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00066.html">Xform</a> object </dd></dl>
 
 </div>
 </div>
@@ -1934,6 +2078,41 @@ template&lt;typename SourceType &gt; </div>
 
 </div>
 </div>
+<a id="a361e9ab4ddc32fca91b0fe336985a8cf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a361e9ab4ddc32fca91b0fe336985a8cf">&#9670;&nbsp;</a></span>replaceExtensions()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="a00054.html">NiftiImage</a>&amp; RNifti::NiftiImage::replaceExtensions </td>
+          <td>(</td>
+          <td class="paramtype">const std::list&lt; <a class="el" href="a00062.html">Extension</a> &gt;&#160;</td>
+          <td class="paramname"><em>extensions</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Replace all extensions with new ones. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">A</td><td>list of <a class="el" href="a00062.html">Extension</a> objects </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self, with the new extensions attached </dd></dl>
+
+</div>
+</div>
 <a id="a8d9e7e462f4aad57a46346f8d4b04e8e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8d9e7e462f4aad57a46346f8d4b04e8e">&#9670;&nbsp;</a></span>rescale()</h2>
 
@@ -2083,7 +2262,7 @@ template&lt;typename SourceType &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="a00062.html">Xform</a> RNifti::NiftiImage::sform </td>
+          <td class="memname"><a class="el" href="a00066.html">Xform</a> RNifti::NiftiImage::sform </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -2097,7 +2276,7 @@ template&lt;typename SourceType &gt; </div>
 </div><div class="memdoc">
 
 <p>Access the sform matrix. </p>
-<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00062.html">Xform</a> object </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00066.html">Xform</a> object </dd></dl>
 
 </div>
 </div>
@@ -2111,7 +2290,7 @@ template&lt;typename SourceType &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">const <a class="el" href="a00062.html">Xform</a> RNifti::NiftiImage::sform </td>
+          <td class="memname">const <a class="el" href="a00066.html">Xform</a> RNifti::NiftiImage::sform </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td> const</td>
@@ -2125,7 +2304,7 @@ template&lt;typename SourceType &gt; </div>
 </div><div class="memdoc">
 
 <p>Access the sform matrix. </p>
-<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00062.html">Xform</a> object </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00066.html">Xform</a> object </dd></dl>
 
 </div>
 </div>
@@ -2512,7 +2691,7 @@ template&lt;typename SourceType &gt; </div>
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">const <a class="el" href="a00062.html">Xform</a> RNifti::NiftiImage::xform </td>
+          <td class="memname">const <a class="el" href="a00066.html">Xform</a> RNifti::NiftiImage::xform </td>
           <td>(</td>
           <td class="paramtype">const bool&#160;</td>
           <td class="paramname"><em>preferQuaternion</em> = <code>true</code></td><td>)</td>
@@ -2528,7 +2707,7 @@ template&lt;typename SourceType &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00062.html">Xform</a> object </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>An <a class="el" href="a00066.html">Xform</a> object </dd></dl>
 
 </div>
 </div>

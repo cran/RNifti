@@ -9,8 +9,9 @@ using namespace RNifti;
 typedef std::vector<int> int_vector;
 typedef std::vector<NiftiImage::dim_t> dim_vector;
 typedef std::vector<NiftiImage::pixdim_t> pixdim_vector;
+typedef std::list<NiftiImage::Extension> extension_list;
 
-inline bool isXformMatrix (const SEXP object)
+inline static bool isXformMatrix (const SEXP object)
 {
     if (!Rf_isMatrix(object))
         return false;
@@ -18,7 +19,7 @@ inline bool isXformMatrix (const SEXP object)
     return (matrix.cols() == 4 && matrix.rows() == 4);
 }
 
-inline unsigned char clip (const double &value)
+inline static unsigned char clip (const double &value)
 {
     unsigned char result;
     if (value < 0.0)
@@ -654,8 +655,86 @@ END_RCPP
 RcppExport SEXP pointerToArray (SEXP _image)
 {
 BEGIN_RCPP
+    // Not flagging as read-only, because a copy must happen or the objects will be tied together
     NiftiImage image(_image);
     return image.toArray();
+END_RCPP
+}
+
+void unwrappedPointerFinaliser (SEXP pointer)
+{
+    nifti2_image *image = (nifti2_image *) R_ExternalPtrAddr(pointer);
+    nifti2_image_free(image);
+    R_ClearExternalPtr(pointer);
+}
+
+// Extract an external pointer to a nifti_image, for use in plain C client code
+// This involves a copy, and currently only produces version 2 structs
+RcppExport SEXP unwrapPointer (SEXP _image, SEXP _disown)
+{
+BEGIN_RCPP
+    const NiftiImage image(_image, true, true);
+    nifti2_image *result = nifti2_copy_nim_info(image);
+    if (image->data != NULL)
+    {
+        const size_t dataSize = nifti2_get_volsize(image);
+        result->data = calloc(1, dataSize);
+        memcpy(result->data, image->data, dataSize);
+    }
+    
+    SEXP pointer = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
+    if (!as<bool>(_disown))
+        R_RegisterCFinalizerEx(pointer, unwrappedPointerFinaliser, TRUE);
+    UNPROTECT(1);
+    return pointer;
+END_RCPP
+}
+
+RcppExport SEXP wrapPointer (SEXP _image)
+{
+BEGIN_RCPP
+    XPtr<nifti2_image> pointer(_image);
+    const NiftiImage image(pointer.get(), true);
+    return image.toPointer("NIfTI image");
+END_RCPP
+}
+
+RcppExport SEXP getExtensions (SEXP _image, SEXP _code)
+{
+BEGIN_RCPP
+    const NiftiImage image(_image, false, true);
+    const extension_list extensions = image.extensions(as<int>(_code));
+    List result(extensions.begin(), extensions.end());
+    return result;
+END_RCPP
+}
+
+RcppExport SEXP setExtensions (SEXP _image, SEXP _extensions, SEXP _code)
+{
+BEGIN_RCPP
+    NiftiImage image(_image);
+    const int code = as<int>(_code);
+    extension_list extensions = image.extensions();
+    
+    if (Rf_isNull(_extensions))
+    {
+        if (code < 0)
+            extensions.clear();
+        else
+        {
+            for (extension_list::iterator it=extensions.begin(); it!=extensions.end(); ++it)
+            {
+                if (it->code() == code)
+                    extensions.erase(it);
+            }
+        }
+    }
+    else if (Rf_isVectorList(_extensions))
+        extensions = as<extension_list>(_extensions);
+    else
+        extensions.push_back(NiftiImage::Extension(_extensions, code));
+    
+    return image.replaceExtensions(extensions).toArrayOrPointer(Rf_inherits(_image,"internalImage"), "NIfTI image");
 END_RCPP
 }
 
@@ -690,6 +769,10 @@ R_CallMethodDef callMethods[] = {
     { "indexList",      (DL_FUNC) &indexList,       2 },
     { "rescaleImage",   (DL_FUNC) &rescaleImage,    2 },
     { "pointerToArray", (DL_FUNC) &pointerToArray,  1 },
+    { "unwrapPointer",  (DL_FUNC) &unwrapPointer,   2 },
+    { "wrapPointer",    (DL_FUNC) &wrapPointer,     1 },
+    { "getExtensions",  (DL_FUNC) &getExtensions,   2 },
+    { "setExtensions",  (DL_FUNC) &setExtensions,   3 },
     { "setDebugLevel",  (DL_FUNC) &setDebugLevel,   1 },
     { NULL, NULL, 0 }
 };
