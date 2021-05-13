@@ -81,6 +81,10 @@ test_that("NIfTI files can be read and written", {
     expect_error(pixdim(image) <- c(1,1,1))
     expect_error(image[40,40,30] <- 400)
     
+    # Direct access to the NIfTI data blob
+    imageHeader <- niftiHeader(imagePath)
+    expect_equal(RNifti:::readBlob(imagePath, 1, imageHeader$datatype, imageHeader$vox_offset + imageHeader$bitpix * 271047 / 8), 368)
+    
     # Check that internal indexing still works when data scaling is in play
     compressedInternalImage <- readNifti(tempPath, internal=TRUE)
     expect_equal(round(compressedInternalImage[40,40,30]), 363)
@@ -158,10 +162,17 @@ test_that("image objects can be manipulated", {
 test_that("NIfTI objects have the expected copying semantics", {
     im1 <- readNifti(system.file("extdata", "example.nii.gz", package="RNifti"), internal=TRUE)
     im2 <- im1
+    
     # Only applies for internal images, because otherwise the data will be updated to match the R array
     expect_true(all(RNifti:::addresses(im1) == RNifti:::addresses(im2)))
     im1$intent_code <- 1000L
     expect_false(all(RNifti:::addresses(im1) == RNifti:::addresses(im2)))
+    
+    # Unwrapping and wrapping NiftiImage pointers involves copies
+    im3 <- RNifti:::wrapPointer(RNifti:::unwrapPointer(im1))
+    expect_equal(niftiHeader(im1), niftiHeader(im3))
+    expect_s3_class(im3, "niftiImage")
+    expect_false(all(RNifti:::addresses(im1) == RNifti:::addresses(im3)))
 })
 
 test_that("NAs are preserved across datatypes", {

@@ -173,6 +173,45 @@ BEGIN_RCPP
 END_RCPP
 }
 
+RcppExport SEXP readNiftiBlob (SEXP _file, SEXP _length, SEXP _datatype, SEXP _offset)
+{
+BEGIN_RCPP
+    int datatype;
+    if (Rf_isInteger(_datatype))
+        datatype = as<int>(_datatype);
+    else
+        datatype = RNifti::internal::stringToDatatype(as<std::string>(_datatype));
+    
+    const std::string filename = as<std::string>(_file);
+    const size_t length = as<size_t>(_length);
+    const size_t offset = Rf_isNull(_offset) ? 0 : as<size_t>(_offset);
+    
+    int nbyper;
+    nifti_datatype_sizes(datatype, &nbyper, NULL);
+    
+    const bool gzExtension = filename.length() > 3 && filename.substr(filename.length()-3,3) == ".gz";
+    znzFile file = znzopen(filename.c_str(), "rb", gzExtension);
+    if (znz_isnull(file))
+        Rf_error("Failed to open file %s", filename.c_str());
+    if (offset > 0)
+        znzseek(file, offset, SEEK_SET);
+    char *buffer = (char *) calloc(length, nbyper);
+    znzread(buffer, nbyper, length, file);
+    znzclose(file);
+    
+    NiftiImageData data(buffer, length, datatype);
+    RObject result;
+    if (data.isComplex())
+        result = ComplexVector(data.begin(), data.end());
+    else if (data.isFloatingPoint())
+        result = NumericVector(data.begin(), data.end());
+    else
+        result = IntegerVector(data.begin(), data.end());
+    free(buffer);
+    return result;
+END_RCPP
+}
+
 RcppExport SEXP writeNifti (SEXP _image, SEXP _file, SEXP _datatype, SEXP _filetype)
 {
 BEGIN_RCPP
@@ -661,13 +700,6 @@ BEGIN_RCPP
 END_RCPP
 }
 
-void unwrappedPointerFinaliser (SEXP pointer)
-{
-    nifti2_image *image = (nifti2_image *) R_ExternalPtrAddr(pointer);
-    nifti2_image_free(image);
-    R_ClearExternalPtr(pointer);
-}
-
 // Extract an external pointer to a nifti_image, for use in plain C client code
 // This involves a copy, and currently only produces version 2 structs
 RcppExport SEXP unwrapPointer (SEXP _image, SEXP _disown)
@@ -682,10 +714,8 @@ BEGIN_RCPP
         memcpy(result->data, image->data, dataSize);
     }
     
-    SEXP pointer = PROTECT(R_MakeExternalPtr(result, R_NilValue, R_NilValue));
-    if (!as<bool>(_disown))
-        R_RegisterCFinalizerEx(pointer, unwrappedPointerFinaliser, TRUE);
-    UNPROTECT(1);
+    // Create the bare pointer, and set nifti2_image_free() as a finaliser function if we're not disowning
+    XPtr<nifti2_image,PreserveStorage,nifti2_image_free,true> pointer(result, !as<bool>(_disown));
     return pointer;
 END_RCPP
 }
@@ -693,6 +723,7 @@ END_RCPP
 RcppExport SEXP wrapPointer (SEXP _image)
 {
 BEGIN_RCPP
+    // Finalisers are not set when the pointer is retrieved, so the other template parameters aren't needed
     XPtr<nifti2_image> pointer(_image);
     const NiftiImage image(pointer.get(), true);
     return image.toPointer("NIfTI image");
@@ -755,6 +786,7 @@ R_CallMethodDef callMethods[] = {
     { "asNifti",        (DL_FUNC) &asNifti,         4 },
     { "niftiVersion",   (DL_FUNC) &niftiVersion,    1 },
     { "readNifti",      (DL_FUNC) &readNifti,       3 },
+    { "readNiftiBlob",  (DL_FUNC) &readNiftiBlob,   4 },
     { "writeNifti",     (DL_FUNC) &writeNifti,      4 },
     { "niftiHeader",    (DL_FUNC) &niftiHeader,     1 },
     { "analyzeHeader",  (DL_FUNC) &analyzeHeader,   1 },
