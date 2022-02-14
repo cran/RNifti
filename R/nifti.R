@@ -311,9 +311,9 @@ niftiVersion <- function (file)
     sapply(file, function(f) .Call("niftiVersion", f, PACKAGE="RNifti"))
 }
 
-readBlob <- function (file, length, datatype, offset = 0)
+readBlob <- function (file, length, datatype, offset = 0, gzipped = NA, swap = FALSE)
 {
-    .Call("readNiftiBlob", file, length, datatype, offset, PACKAGE="RNifti")
+    .Call("readNiftiBlob", file, length, datatype, offset, gzipped, swap, PACKAGE="RNifti")
 }
 
 addresses <- function (image)
