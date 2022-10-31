@@ -2,6 +2,13 @@ Significant changes to the RNifti package are laid out below for each release.
 
 ===============================================================================
 
+VERSION 1.4.2
+
+- Warnings about non-prototype function declarations (in clang 15+) have been
+  resolved.
+
+===============================================================================
+
 VERSION 1.4.1
 
 - A formatting oversight would previously lead to an invalid `Makevars` file on
@@ -94,9 +101,11 @@ VERSION 1.2.1
 
 VERSION 1.2.0
 
-With this release, `RNifti`'s core code moves over to the NIfTI-2 library.
-Reading and writing NIfTI-2 format files is therefore supported. API clients
-may use either version of the NIfTI library.
+General
+
+- With this release, `RNifti`'s core code moves over to the NIfTI-2 library.
+  Reading and writing NIfTI-2 format files is therefore supported. API clients
+  may use either version of the NIfTI library.
 
 R interface
 
