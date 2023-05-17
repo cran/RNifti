@@ -54,8 +54,14 @@ readNifti <- readAnalyze <- function (file, internal = FALSE, volumes = NULL)
 #' using the standard NIfTI C library.
 #' 
 #' @param image An image, in any acceptable form (see \code{\link{asNifti}}).
-#' @param file A character string containing a file name.
-#' @param template An optional template object to derive NIfTI-1 properties
+#' @param file A character string containing a file name. If this has no file
+#'   extension suffix, or ends with \code{"nii"}, the single-file NIfTI format
+#'   is used; if the suffix is \code{"nii.gz"}, the compressed single-file
+#'   format is used; if the suffix is \code{"hdr"} or \code{"img"}, the NIfTI
+#'   pair two-file format is used; if it's \code{"hdr.gz"} or \code{"img.gz"},
+#'   the compressed pair format is used. If any other extension is present it
+#'   will be ignored, and \code{".nii"} appended.
+#' @param template An optional template object to derive NIfTI properties
 #'   from. Passed to \code{\link{asNifti}} if \code{image} is an array.
 #' @param datatype The NIfTI datatype to use when writing the data out. The
 #'   default, \code{"auto"} uses the R type or, for internal images, the
@@ -66,6 +72,9 @@ readNifti <- readAnalyze <- function (file, internal = FALSE, volumes = NULL)
 #'   use. Version 2 is usually only needed for very large images or where
 #'   metadata needs to be stored with high precision. The types available for
 #'   storing the pixel data are the same in both cases.
+#' @param compression The gzip compression level to use, an integer between 0
+#'   (none) and 9 (maximum). Ignored if an uncompressed format is implied by
+#'   the requested file name.
 #' @return An invisible, named character vector giving the image and header
 #'   file names written to.
 #' 
@@ -80,16 +89,16 @@ readNifti <- readAnalyze <- function (file, internal = FALSE, volumes = NULL)
 #' @seealso \code{\link{readNifti}}, \code{\link{asNifti}}
 #' @references The NIfTI-1 standard (\url{https://www.nitrc.org/docman/view.php/26/64/nifti1.h}).
 #' @export
-writeNifti <- function (image, file, template = NULL, datatype = "auto", version = 1)
+writeNifti <- function (image, file, template = NULL, datatype = "auto", version = 1, compression = 6)
 {
-    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), switch(version,"nifti1","nifti2"), PACKAGE="RNifti"))
+    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), switch(version,"nifti1","nifti2"), compression, PACKAGE="RNifti"))
 }
 
 #' @rdname writeNifti
 #' @export
-writeAnalyze <- function (image, file, template = NULL, datatype = "auto")
+writeAnalyze <- function (image, file, template = NULL, datatype = "auto", compression = 6)
 {
-    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), "analyze", PACKAGE="RNifti"))
+    invisible(.Call("writeNifti", asNifti(image,template,internal=TRUE), file, tolower(datatype), "analyze", compression, PACKAGE="RNifti"))
 }
 
 #' Create or modify an NIfTI image object
@@ -239,7 +248,11 @@ updateNifti <- function (image, template = NULL, datatype = "auto")
 #' @export niftiHeader dumpNifti
 niftiHeader <- dumpNifti <- function (image = list())
 {
-    .Call("niftiHeader", asNifti(image,internal=TRUE), PACKAGE="RNifti")
+    # Special case to avoid expensively reading image data from file when only metadata is needed
+    if (is.character(image) && length(image) == 1 && !inherits(image,"internalImage"))
+        .Call("niftiHeader", image, PACKAGE="RNifti")
+    else
+        .Call("niftiHeader", asNifti(image,internal=TRUE), PACKAGE="RNifti")
 }
 
 #' @rdname niftiHeader

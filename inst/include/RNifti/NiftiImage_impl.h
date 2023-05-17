@@ -76,7 +76,9 @@ inline int stringToDatatype (const std::string &datatype)
         datatypeCodes["uint32"] = DT_UINT32;
         datatypeCodes["int64"] = DT_INT64;
         datatypeCodes["uint64"] = DT_UINT64;
+        datatypeCodes["cfloat"] = DT_COMPLEX64;
         datatypeCodes["complex64"] = DT_COMPLEX64;
+        datatypeCodes["cdouble"] = DT_COMPLEX128;
         datatypeCodes["complex128"] = DT_COMPLEX128;
         datatypeCodes["complex"] = DT_COMPLEX128;
         datatypeCodes["rgb24"] = DT_RGB24;
@@ -933,7 +935,12 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
         data = call.eval();
     }
     
-    const int datatype = (Rf_isNull(data) ? DT_INT32 : sexpTypeToNiftiType(data.sexp_type()));
+    int datatype = (Rf_isNull(data) ? DT_INT32 : sexpTypeToNiftiType(data.sexp_type()));
+    if (data.inherits("rgbArray"))
+    {
+        const int channels = (data.hasAttribute("channels") ? data.attr("channels") : 3);
+        datatype = (channels == 4 ? DT_RGBA32 : DT_RGB24);
+    }
     
     dim_t dims[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
     const std::vector<dim_t> dimVector = mriImage.field("imageDims");
@@ -966,8 +973,15 @@ inline void NiftiImage::initFromMriImage (const Rcpp::RObject &object, const boo
         // NB: nifti_get_volsize() will not be right here if there were tags
         const size_t dataSize = nVoxels * image->nbyper;
         this->image->data = calloc(1, dataSize);
-        if (datatype == DT_INT32)
+        if (datatype == DT_INT32 || datatype == DT_RGBA32)
             memcpy(this->image->data, INTEGER(data), dataSize);
+        else if (datatype == DT_RGB24)
+        {
+            NiftiImageData newData(image);
+            std::copy(INTEGER(data), INTEGER(data)+nVoxels, newData.begin());
+        }
+        else if (datatype == DT_COMPLEX128)
+            memcpy(this->image->data, COMPLEX(data), dataSize);
         else
             memcpy(this->image->data, REAL(data), dataSize);
     }
@@ -1792,7 +1806,7 @@ inline NiftiImage & NiftiImage::replaceData (const NiftiImageData &data)
     return *this;
 }
 
-inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const int datatype, const int filetype) const
+inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const int datatype, const int filetype, const int compression) const
 {
     const bool changingDatatype = (datatype != DT_NONE && !this->isNull() && datatype != image->datatype);
     
@@ -1804,24 +1818,31 @@ inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string 
     if (filetype >= 0 && filetype <= NIFTI_MAX_FTYPE)
         imageToWrite->nifti_type = filetype;
     
+    const char *path = internal::stringToPath(fileName);
+    
+    // If we're writing a gzipped file (only), append a compression level to the mode string
+    std::string mode = "wb";
+    if (nifti_is_gzfile(path) && compression >= 0 && compression <= 9)
+        mode += std::to_string(compression);
+    
 #if RNIFTI_NIFTILIB_VERSION == 1
-    const int status = nifti_set_filenames(imageToWrite, internal::stringToPath(fileName), false, true);
+    const int status = nifti_set_filenames(imageToWrite, path, false, true);
     if (status != 0)
         throw std::runtime_error("Failed to set filenames for NIfTI object");
-    nifti_image_write(imageToWrite);
+    nifti_image_write_hdr_img(imageToWrite, 1, mode.c_str());
 #elif RNIFTI_NIFTILIB_VERSION == 2
-    const int status = nifti2_set_filenames(imageToWrite, internal::stringToPath(fileName), false, true);
+    const int status = nifti2_set_filenames(imageToWrite, path, false, true);
     if (status != 0)
         throw std::runtime_error("Failed to set filenames for NIfTI object");
-    nifti2_image_write(imageToWrite);
+    nifti2_image_write_hdr_img(imageToWrite, 1, mode.c_str());
 #endif
     
     return std::pair<std::string,std::string>(std::string(imageToWrite->fname), std::string(imageToWrite->iname));
 }
 
-inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const std::string &datatype, const int filetype) const
+inline std::pair<std::string,std::string> NiftiImage::toFile (const std::string fileName, const std::string &datatype, const int filetype, const int compression) const
 {
-    return toFile(fileName, internal::stringToDatatype(datatype), filetype);
+    return toFile(fileName, internal::stringToDatatype(datatype), filetype, compression);
 }
 
 #ifdef USING_R

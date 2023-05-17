@@ -47,7 +47,9 @@ void R_init_RNifti (DllInfo *info)
     R_RegisterCCallable("RNifti", "nii_read_collapsed_image", (DL_FUNC) &nifti_read_collapsed_image);
     R_RegisterCCallable("RNifti", "nii_read_subregion_image", (DL_FUNC) &nifti_read_subregion_image);
     R_RegisterCCallable("RNifti", "nii_image_write", (DL_FUNC) &nifti_image_write);
+    R_RegisterCCallable("RNifti", "nii_image_write_status", (DL_FUNC) &nifti_image_write_status);
     R_RegisterCCallable("RNifti", "nii_image_write_bricks", (DL_FUNC) &nifti_image_write_bricks);
+    R_RegisterCCallable("RNifti", "nii_image_write_bricks_status", (DL_FUNC) &nifti_image_write_bricks_status);
     R_RegisterCCallable("RNifti", "nii_image_infodump", (DL_FUNC) &nifti_image_infodump);
     R_RegisterCCallable("RNifti", "nii_disp_lib_hist", (DL_FUNC) &nifti_disp_lib_hist);
     R_RegisterCCallable("RNifti", "nii_disp_lib_version", (DL_FUNC) &nifti_disp_lib_version);
@@ -136,7 +138,9 @@ void R_init_RNifti (DllInfo *info)
     R_RegisterCCallable("RNifti", "nii2_read_collapsed_image", (DL_FUNC) &nifti2_read_collapsed_image);
     R_RegisterCCallable("RNifti", "nii2_read_subregion_image", (DL_FUNC) &nifti2_read_subregion_image);
     R_RegisterCCallable("RNifti", "nii2_image_write", (DL_FUNC) &nifti2_image_write);
+    R_RegisterCCallable("RNifti", "nii2_image_write_status", (DL_FUNC) &nifti2_image_write_status);
     R_RegisterCCallable("RNifti", "nii2_image_write_bricks", (DL_FUNC) &nifti2_image_write_bricks);
+    R_RegisterCCallable("RNifti", "nii2_image_write_bricks_status", (DL_FUNC) &nifti2_image_write_bricks_status);
     R_RegisterCCallable("RNifti", "nii2_image_infodump", (DL_FUNC) &nifti2_image_infodump);
     R_RegisterCCallable("RNifti", "nii2_disp_lib_hist", (DL_FUNC) &nifti2_disp_lib_hist);
     R_RegisterCCallable("RNifti", "nii2_disp_matrix_orient", (DL_FUNC) &nifti2_disp_matrix_orient);
