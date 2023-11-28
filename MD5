@@ -1,6 +1,6 @@
-030b755d82fad1dbd63bd41eb66ec31c *DESCRIPTION
+a30c9b714a9dce08fda52433ee5d0324 *DESCRIPTION
 b94d5d2bf459e2903296147cf718349d *NAMESPACE
-07e12ab4e8595ed8041b38e48745b9db *NEWS
+44864e0b14c644955b119fa29afcdb6c *NEWS
 48127c25699df64079656e5eb7fcd1d2 *R/extensions.R
 a45b6c1b24ab18fa3818f783bf93a84c *R/image.R
 0f3541bd599edbfd113439d69b5f693b *R/nifti.R
@@ -18,10 +18,10 @@ bad67894bda1a1b3b135369d6c07df6a *inst/extdata/example.nii.gz
 e8547f4bc7609814adfbab6fe9c1c288 *inst/extdata/example_4d.nii.gz
 c26818fcb45b7b7a9d4154d5487230e1 *inst/extdata/example_rgb.nii.gz
 bdc38ee7810c9f6b00579488566ee382 *inst/include/RNifti.h
-8a7db70b8aab356698e6bbb339354fda *inst/include/RNifti/NiftiImage.h
-6efb974693e3c5533abf69be0662286b *inst/include/RNifti/NiftiImage_impl.h
+e2c74e0083e3937157cced62c63414e0 *inst/include/RNifti/NiftiImage.h
+a43b0c2c9871d4edf6185c6c6060073a *inst/include/RNifti/NiftiImage_impl.h
 f80b24dc1fac288092c6758dfe0b36f3 *inst/include/RNifti/NiftiImage_matrix.h
-f930d3f1090d3f9bb525ebc114e3410d *inst/include/RNifti/NiftiImage_print.h
+8a9527a48edffbebde2170c000a321ad *inst/include/RNifti/NiftiImage_print.h
 409773045b5711a7c6e64c03b7fc9502 *inst/include/RNiftiAPI.h
 362304addec3a503d8fd3813c4bbb661 *inst/include/niftilib/nifti1.h
 1ca71b52a4f8fdf28c29f58ffebbfb0a *inst/include/niftilib/nifti1_io.h
@@ -52,9 +52,9 @@ d1e37db347a3cdf2329fe98282c554d5 *man/writeNifti.Rd
 cd7905d91c416d05dc58c980254711fb *man/xform.Rd
 8e06de557abf2608ef1d50c13753683c *src/Makevars.in
 49abe6af876df7ba9299e3eda904dc59 *src/Makevars.win
-e4dfc0209ead15da5a16e1adc10c691d *src/main.cpp
-aab0540996c17f146a7934001c8fab54 *src/niftilib/nifti1_io.c
-824ae11a61b2cd5d07e4e39e62e8a346 *src/niftilib/nifti2_io.c
+2b76d04b3924ab31ced53f5e08491d5e *src/main.cpp
+ba4b75f46c445369ab22405a14947c88 *src/niftilib/nifti1_io.c
+5bbd85dfe9831c8cda38edcfa4a60cd9 *src/niftilib/nifti2_io.c
 ae3bbb54820e1d49fb90cbba222e973f *src/zlib/adler32.c
 7a734598f9792fee943b70b6da8d932f *src/zlib/compress.c
 1339c92938d2594a6eecfa21c374d1b6 *src/zlib/crc32.c
@@ -82,6 +82,7 @@ de91a463004fd5b944c3d37eab0c1794 *src/zlib/zutil.h
 420a0b8e9d75cd936a6d08acd1e7bf34 *src/znzlib/znzlib.c
 2960da031fea46eaffe3e3abedb78f29 *src/zzz.c
 d4a2abbb6217055b8900c8d86ac6aa53 *tests/testthat.R
+284ecfcebb44440aaf575935eb8a37dc *tests/testthat/Rplots.pdf
 9b78b59582b4b2dfdab2c3124c705535 *tests/testthat/test-05-nifti.R
 923f10fc2c56863736b67257909b4e19 *tests/testthat/test-08-composite.R
 f586c7912239dbe87e5d75cfba3b4aee *tests/testthat/test-10-xform.R

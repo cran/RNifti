@@ -550,7 +550,7 @@ nifti_image *nifti_image_read_bricks(const char * hname, int nbricks,
 
    if( !hname || !NBL ){
       Rc_fprintf_stderr("** nifti_image_read_bricks: bad params (%p,%p)\n",
-              hname, (void *)NBL);
+              (void *)hname, (void *)NBL);
       return NULL;
    }
 
@@ -3082,7 +3082,7 @@ int nifti_set_filenames( nifti_image * nim, const char * prefix, int check,
 
    if( !nim || !prefix ){
       Rc_fprintf_stderr("** nifti_set_filenames, bad params %p, %p\n",
-              (void *)nim,prefix);
+              (void *)nim,(void *)prefix);
       return -1;
    }
 
@@ -3408,7 +3408,7 @@ int nifti_set_type_from_names( nifti_image * nim )
 
    if( !nim->fname || !nim->iname ){
       Rc_fprintf_stderr("** NSTFN: missing filename(s) fname @ %p, iname @ %p\n",
-              nim->fname, nim->iname);
+              (void *)nim->fname, (void *)nim->iname);
       return -1;
    }
 
@@ -4414,11 +4414,11 @@ static int nifti_read_extensions( nifti_image *nim, znzFile fp, int remain )
    if( (posn != sizeof(nifti_1_header)) &&
        (nim->nifti_type != NIFTI_FTYPE_ASCII) )
       Rc_fprintf_stderr("** WARNING: posn not header size (%d, %d)\n",
-              posn, (int)sizeof(nifti_1_header));
+              (int)posn, (int)sizeof(nifti_1_header));
 
    if( g_opts.debug > 2 )
       Rc_fprintf_stderr("-d nre: posn = %d, offset = %d, type = %d, remain = %d\n",
-              posn, nim->iname_offset, nim->nifti_type, remain);
+              (int)posn, nim->iname_offset, nim->nifti_type, remain);
 
    if( remain < 16 ){
       if( g_opts.debug > 2 ){
@@ -4579,7 +4579,7 @@ static int nifti_fill_extension( nifti1_extension *ext, const char * data,
 
    if( !ext || !data || len < 0 ){
       Rc_fprintf_stderr("** fill_ext: bad params (%p,%p,%d)\n",
-              (void *)ext, data, len);
+              (void *)ext, (void *)data, len);
       return -1;
    } else if( ! nifti_is_valid_ecode(ecode) ){
       Rc_fprintf_stderr("** warning: writing unknown ecode %d\n", ecode);
@@ -4827,7 +4827,7 @@ static znzFile nifti_image_load_prep( nifti_image *nim )
       if ( g_opts.debug > 0 ){
          if( !nim ) Rc_fprintf_stderr("** ERROR: N_image_load: no nifti image\n");
          else Rc_fprintf_stderr("** ERROR: N_image_load: bad params (%p,%d,%u)\n",
-                      nim->iname, nim->nbyper, (unsigned)nim->nvox);
+                      (void *)nim->iname, nim->nbyper, (unsigned)nim->nvox);
       }
       return NULL;
    }
@@ -7088,7 +7088,7 @@ int nifti_read_subregion_image( nifti_image * nim,
     {
     if(g_opts.debug > 1)
       {
-      Rc_fprintf_stderr("allocation of %d bytes failed\n",total_alloc_size);
+      Rc_fprintf_stderr("allocation of %d bytes failed\n", (int)total_alloc_size);
       }
     znzclose(fp);
     return -1;
