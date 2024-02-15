@@ -1,6 +1,6 @@
 Package: RNifti
-Version: 1.5.1
-Date: 2023-11-27
+Version: 1.6.0
+Date: 2024-02-15
 Title: Fast R and C++ Access to NIfTI Images
 Authors@R: c(person("Jon", "Clayden", role=c("cre","aut"),
     email="code@clayden.org", comment=c(ORCID="0000-0002-6608-0619")),
@@ -27,7 +27,7 @@ BugReports: https://github.com/jonclayden/RNifti/issues
 Encoding: UTF-8
 RoxygenNote: 7.2.3
 NeedsCompilation: yes
-Packaged: 2023-11-28 11:18:58 UTC; jon
+Packaged: 2024-02-15 16:27:14 UTC; jon
 Author: Jon Clayden [cre, aut] (<https://orcid.org/0000-0002-6608-0619>),
   Bob Cox [aut],
   Mark Jenkinson [aut],
@@ -38,4 +38,4 @@ Author: Jon Clayden [cre, aut] (<https://orcid.org/0000-0002-6608-0619>),
   Mark Adler [cph]
 Maintainer: Jon Clayden <code@clayden.org>
 Repository: CRAN
-Date/Publication: 2023-11-28 12:10:12 UTC
+Date/Publication: 2024-02-15 17:20:02 UTC

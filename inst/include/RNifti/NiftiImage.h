@@ -330,7 +330,9 @@ public:
         operator Rcomplex() const
         {
             const complex128_t value = parent.handler->getComplex(ptr);
-            Rcomplex rValue = { value.real(), value.imag() };
+            Rcomplex rValue;
+            rValue.r = value.real();
+            rValue.i = value.imag();
             if (parent.isScaled())
             {
                 rValue.r = rValue.r * parent.slope + parent.intercept;
@@ -352,7 +354,9 @@ public:
     class Iterator
     {
     private:
-        const NiftiImageData &parent;
+        // NB: "parent" cannot be a reference because reference members are immutable. That renders
+        // the class non-copy-assignable, which is a requirement for iterators (issue #31)
+        const NiftiImageData *parent;
         void *ptr;
         size_t step;
         
@@ -366,16 +370,17 @@ public:
         
         /**
          * Primary constructor
-         * @param parent A reference to the parent object
-         * @param ptr An opaque pointer to the memory underpinning the iterator
+         * @param parent A pointer to the parent object
+         * @param ptr An opaque pointer to the memory underpinning the iterator. The default,
+         *   \c NULL, corresponds to the start of the parent object's data blob.
          * @param step The increment between elements within the blob, in bytes. If zero, the
          *   default, the width associated with the stored datatype will be used.
         **/
-        Iterator (const NiftiImageData &parent, void *ptr = NULL, const size_t step = 0)
+        Iterator (const NiftiImageData *parent = NULL, void *ptr = NULL, const size_t step = 0)
             : parent(parent)
         {
-            this->ptr = (ptr == NULL ? parent.dataPtr : ptr);
-            this->step = (step == 0 ? parent.handler->size() : step);
+            this->ptr = (ptr == NULL ? parent->dataPtr : ptr);
+            this->step = (step == 0 ? parent->handler->size() : step);
         }
         
         /**
@@ -411,10 +416,10 @@ public:
         bool operator> (const Iterator &other) const { return (ptr > other.ptr); }
         bool operator< (const Iterator &other) const { return (ptr < other.ptr); }
         
-        const Element operator* () const { return Element(parent, ptr); }
-        Element operator* () { return Element(parent, ptr); }
-        const Element operator[] (const size_t i) const { return Element(parent, static_cast<char*>(ptr) + (i * step)); }
-        Element operator[] (const size_t i) { return Element(parent, static_cast<char*>(ptr) + (i * step)); }
+        const Element operator* () const { return Element(*parent, ptr); }
+        Element operator* () { return Element(*parent, ptr); }
+        const Element operator[] (const size_t i) const { return Element(*parent, static_cast<char*>(ptr) + (i * step)); }
+        Element operator[] (const size_t i) { return Element(*parent, static_cast<char*>(ptr) + (i * step)); }
     };
     
     /**
@@ -573,16 +578,16 @@ public:
     NiftiImageData & disown ()       { this->owner = false; return *this; }
     
     /** Obtain a constant iterator corresponding to the start of the blob */
-    const Iterator begin () const { return Iterator(*this); }
+    const Iterator begin () const { return Iterator(this); }
     
     /** Obtain a constant iterator corresponding to the end of the blob */
-    const Iterator end () const { return Iterator(*this, static_cast<char*>(dataPtr) + totalBytes()); }
+    const Iterator end () const { return Iterator(this, static_cast<char*>(dataPtr) + totalBytes()); }
     
     /** Obtain a mutable iterator corresponding to the start of the blob */
-    Iterator begin () { return Iterator(*this); }
+    Iterator begin () { return Iterator(this); }
     
     /** Obtain a mutable iterator corresponding to the end of the blob */
-    Iterator end () { return Iterator(*this, static_cast<char*>(dataPtr) + totalBytes()); }
+    Iterator end () { return Iterator(this, static_cast<char*>(dataPtr) + totalBytes()); }
     
     /**
      * Indexing operator, returning a constant element
@@ -1418,6 +1423,38 @@ public:
         Rc_printf("Creating NiftiImage (v%d) with pointer %p (from pointer)\n", RNIFTI_NIFTILIB_VERSION, (void *) this->image);
 #endif
     }
+    
+    /**
+     * Initialise using a NIfTI-1 header
+     * @param header A reference to a NIfTI-1 header struct
+    **/
+    NiftiImage (const nifti_1_header &header)
+        : image(NULL), refCount(NULL)
+    {
+#if RNIFTI_NIFTILIB_VERSION == 1
+        acquire(nifti_convert_nhdr2nim(header, NULL));
+#elif RNIFTI_NIFTILIB_VERSION == 2
+        acquire(nifti_convert_n1hdr2nim(header, NULL));
+#endif
+#ifndef NDEBUG
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from header)\n", RNIFTI_NIFTILIB_VERSION, (void *) this->image);
+#endif
+    }
+    
+#if RNIFTI_NIFTILIB_VERSION == 2
+    /**
+     * Initialise using a NIfTI-2 header
+     * @param header A reference to a NIfTI-2 header struct
+    **/
+    NiftiImage (const nifti_2_header &header)
+        : image(NULL), refCount(NULL)
+    {
+        acquire(nifti_convert_n2hdr2nim(header, NULL));
+#ifndef NDEBUG
+        Rc_printf("Creating NiftiImage (v%d) with pointer %p (from header)\n", RNIFTI_NIFTILIB_VERSION, (void *) this->image);
+#endif
+    }
+#endif
     
     /**
      * Initialise from basic metadata, allocating and zeroing pixel data
