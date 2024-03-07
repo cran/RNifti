@@ -1,6 +1,6 @@
-6fc172b39781ad6ec2fb8f0f5197698d *DESCRIPTION
+34edc7d871efcdc02f5268d5844066b9 *DESCRIPTION
 b94d5d2bf459e2903296147cf718349d *NAMESPACE
-3a3d731e3dd52253df0eb0eb481ee8b0 *NEWS
+225c737e4b1d46d73d08c3d0422bf6dd *NEWS
 48127c25699df64079656e5eb7fcd1d2 *R/extensions.R
 a45b6c1b24ab18fa3818f783bf93a84c *R/image.R
 46e14f10e18c2dee71fa72ff7cdc8f70 *R/nifti.R
@@ -50,7 +50,7 @@ d1e37db347a3cdf2329fe98282c554d5 *man/writeNifti.Rd
 cd7905d91c416d05dc58c980254711fb *man/xform.Rd
 56634e57ebb5d93a068d62acb48c6b1a *src/Makevars.in
 08367357a0cc57225d43002490f619fa *src/Makevars.win
-dc85947bdd5b359584b04c8e8e0486d6 *src/main.cpp
+730c4aba4e53e655daf5e9652b627228 *src/main.cpp
 3ec9b546cf310cdb253ec203693e4e8d *src/niftilib/nifti1_io.c
 5bbd85dfe9831c8cda38edcfa4a60cd9 *src/niftilib/nifti2_io.c
 1167fcfa3f77ffa597b4f5a5b42d8e2c *src/zlib/Makefile.in
@@ -91,7 +91,6 @@ ef9f3b09085209c0193ab0686e1edd5b *src/zlib/zutil.c
 420a0b8e9d75cd936a6d08acd1e7bf34 *src/znzlib/znzlib.c
 2960da031fea46eaffe3e3abedb78f29 *src/zzz.c
 d4a2abbb6217055b8900c8d86ac6aa53 *tests/testthat.R
-284ecfcebb44440aaf575935eb8a37dc *tests/testthat/Rplots.pdf
 8ee24bd56273bdd9e13749822b8cae8f *tests/testthat/test-05-nifti.R
 923f10fc2c56863736b67257909b4e19 *tests/testthat/test-08-composite.R
 f586c7912239dbe87e5d75cfba3b4aee *tests/testthat/test-10-xform.R
