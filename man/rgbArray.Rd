@@ -2,10 +2,16 @@
 % Please edit documentation in R/rgb.R
 \name{rgbArray}
 \alias{rgbArray}
+\alias{[.rgbArray}
+\alias{as.raster.rgbArray}
 \alias{as.character.rgbArray}
 \title{RGB arrays}
 \usage{
 rgbArray(red, green, blue, alpha, max = NULL, dim = NULL, ...)
+
+\method{[}{rgbArray}(x, i, j, ..., drop = TRUE)
+
+\method{as.raster}{rgbArray}(x, ...)
 
 \method{as.character}{rgbArray}(x, flatten = TRUE, ...)
 }
@@ -29,10 +35,16 @@ dimensions of \code{red} are used if this is \code{NULL}.}
 
 \item{...}{For \code{rgbArray}, additional attributes to set on the result,
 such as \code{pixdim}. These are passed directly to
-\code{\link{structure}}. For the \code{as.character} method, this argument
-is ignored.}
+\code{\link{structure}}. For the indexing method, additional indices.}
 
 \item{x}{An \code{rgbArray} object.}
+
+\item{i, j}{Index vectors, which are passed to the \code{array} method.}
+
+\item{drop}{Whether or not to drop unitary dimensions. \code{rgbArray}
+objects currently always have a \code{dim} attribute, so if the result is
+a vector it will have a remaining single-element dimension equal to its
+length.}
 
 \item{flatten}{Logical value. If \code{FALSE}, the dimensions of \code{x}
 will be retained in the result. The default is \code{TRUE}, for
@@ -40,9 +52,11 @@ consistency with the usual behaviour of \code{as.character}, which strips
 all attributes.}
 }
 \value{
-\code{rgbArray} returns an integer-mode array of class
-  \code{"rgbArray"}. The \code{as.character} method returns a character-mode
-  vector of colour strings.
+\code{rgbArray} and the indexing (\code{[}) method return an
+  integer-mode array of class \code{"rgbArray"}. The \code{as.raster}
+  method returns a \code{raster} object, valid for 2D arrays only. The
+  \code{as.character} method returns a character-mode vector of colour
+  strings with or without dimensions.
 }
 \description{
 The \code{rgbArray} function constructs an integer array whose values are
@@ -50,6 +64,7 @@ byte-packed representations of 8-bit RGBA colour values. The \code{channels}
 attribute (with value 3 or 4) indicates how many channels are being used.
 The resulting array can be used to construct an RGB(A) NIfTI image, or
 converted to standard R colour strings using the \code{as.character} method.
+The indexing method returns another object of the same type.
 }
 \note{
 The values of an \code{"rgbArray"} are not easily interpreted, and

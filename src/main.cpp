@@ -723,7 +723,7 @@ BEGIN_RCPP
         if (data.isComplex())
         {
             ComplexVector result(indices.length());
-            const Rcomplex naValue = { NA_REAL, NA_REAL };
+            const Rcomplex naValue = {{ NA_REAL, NA_REAL }};
             for (int i=0; i<indices.length(); i++)
                 result[i] = (size_t(indices[i]) > data.size() ? naValue : data[indices[i] - 1]);
             return result;
@@ -740,6 +740,14 @@ BEGIN_RCPP
             IntegerVector result(indices.length());
             for (int i=0; i<indices.length(); i++)
                 result[i] = (size_t(indices[i]) > data.size() ? NA_INTEGER : data[indices[i] - 1]);
+            
+            if (data.isRgb())
+            {
+                result.attr("dim") = result.size();
+                result.attr("class") = "rgbArray";
+                result.attr("channels") = (data.datatype() == DT_RGBA32 ? 4 : 3);
+            }
+            
             return result;
         }
     }
@@ -777,7 +785,7 @@ BEGIN_RCPP
         if (data.isComplex())
         {
             ComplexVector result(count);
-            const Rcomplex naValue = { NA_REAL, NA_REAL };
+            const Rcomplex naValue = {{ NA_REAL, NA_REAL }};
             for (size_t j=0; j<count; j++)
             {
                 size_t loc = 0;
@@ -809,8 +817,16 @@ BEGIN_RCPP
                     loc += (locs[i][(j / cumulativeSizes[i]) % sizes[i]] - 1) * strides[i];
                 result[j] = (loc >= data.size() ? NA_INTEGER : data[loc]);
             }
+            
+            if (data.isRgb())
+            {
+                result.attr("class") = "rgbArray";
+                result.attr("channels") = (data.datatype() == DT_RGBA32 ? 4 : 3);
+            }
+            
             return result;
         }
+        // NB: the calling R code handles the dimension vector
     }
 END_RCPP
 }

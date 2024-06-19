@@ -8,13 +8,13 @@
 
 // Defined since RNifti v0.10.0, and equal to 100 * (major version) + (minor version). May not
 // change if the API does not change, and in particular never changes with patch level
-#define RNIFTI_VERSION 106
+#define RNIFTI_VERSION 107
 
 // Versions 1 and 2 of the NIfTI reference library are mutually incompatible, but RNifti does some
 // work to get them to play nicely:
 // 
 // - The compile-time constant RNIFTI_NIFTILIB_VERSION indicates which version of the library has
-//   precedence. nifti1_io.h sets this to 1, and nifti2.io.h to 2, so the first-included header
+//   precedence. nifti1_io.h sets this to 1, and nifti2_io.h to 2, so the first-included header
 //   wins unless the user sets a value explicitly.
 // - nifti_image is aliased to the appropriate struct type according to the library version in use.
 // - Library functions with the same name but different signatures in the two versions are renamed
