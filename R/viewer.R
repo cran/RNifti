@@ -72,6 +72,8 @@
 #' click-to-navigate interactivity.
 #' 
 #' @param ... One or more images, or \code{"viewLayer"} objects, to display.
+#'   These will be plotted in the order specified, so that the first image
+#'   forms the lowest layer.
 #' @param point A numeric vector giving the location to initially centre the
 #'   view on. If crosshairs are in use, they will be placed at this point. For
 #'   3D images, this parameter also determines the planes shown in each
@@ -307,11 +309,15 @@ lyr <- function (image, scale = "grey", min = NULL, max = NULL, mask = NULL)
         colours <- window <- NULL
     else
     {
+        colours <- NULL
         if (is.character(scale) && length(scale) == 1 && !inherits(scale,"AsIs"))
-            colours <- switch(scale, grey=gray(0:99/99), gray=gray(0:99/99), greyscale=gray(0:99/99), grayscale=gray(0:99/99), heat=heat.colors(100), rainbow=rainbow(100,start=0.7,end=0.1), unclass(shades::gradient(scale,100)))
-        else
+            colours <- try(switch(scale, grey=gray(0:99/99), gray=gray(0:99/99), greyscale=gray(0:99/99), grayscale=gray(0:99/99), heat=heat.colors(100), rainbow=rainbow(100,start=0.7,end=0.1), unclass(shades::gradient(scale,100))), silent=TRUE)
+        
+        # If the scale isn't named as per the switch() call above or recognised by shades::gradient(), the latter will have thrown an error, so treat the name as a literal colour instead
+        # Ditto if it was surrounded by I() so as to make it of class "AsIs"
+        if (is.null(colours) || inherits(colours, "try-error"))
             colours <- unclass(scale)
-    
+        
         if (is.null(min))
             min <- image$cal_min
         if (is.null(max))
